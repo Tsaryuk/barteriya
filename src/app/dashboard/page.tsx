@@ -344,28 +344,7 @@ export default function DashboardPage() {
 
         {/* Participants table */}
         <div className="col-span-3 row-span-3">
-          <Card className="h-full overflow-hidden flex flex-col" padding="sm">
-            <div className="px-3 pt-2 pb-3">
-              <CardTitle className="text-base">Участники ({participants.length})</CardTitle>
-            </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-warm-100">
-              {participants.map((p) => {
-                const name = getParticipantName(p);
-                return (
-                  <div key={p.id} className="flex items-center gap-2.5 px-3 py-2.5">
-                    <Avatar name={name} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-warm-700 truncate">{name}</div>
-                      <div className="text-[10px] text-warm-400 truncate">
-                        {(p.user as Record<string, unknown>)?.about as string || ""}
-                      </div>
-                    </div>
-                    <div className="text-xs font-semibold text-warm-600">{formatBarters(p.balance_b)}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+          <ParticipantsPanel participants={participants} gameId={game.id} onRefresh={fetchDashboard} />
         </div>
 
         {/* Pitch status mini */}
@@ -769,6 +748,123 @@ function PitchOverlay({
         })}
       </div>
     </div>
+  );
+}
+
+/* ─── Participants Panel ─────────────────────────── */
+
+function ParticipantsPanel({
+  participants,
+  gameId,
+  onRefresh,
+}: {
+  participants: DBParticipant[];
+  gameId: string;
+  onRefresh: () => void;
+}) {
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const [depositTarget, setDepositTarget] = useState<DBParticipant | null>(null);
+  const [depositAmount, setDepositAmount] = useState("1000");
+  const [depositing, setDepositing] = useState(false);
+
+  const handleCheckIn = async (userId: string) => {
+    setCheckingIn(userId);
+    try {
+      await api.checkIn(gameId, userId);
+      onRefresh();
+    } catch {
+      // ignore
+    } finally {
+      setCheckingIn(null);
+    }
+  };
+
+  const handleDeposit = async () => {
+    if (!depositTarget) return;
+    setDepositing(true);
+    try {
+      await api.deposit(gameId, Number(depositAmount), depositTarget.user_id);
+      setDepositTarget(null);
+      setDepositAmount("1000");
+      onRefresh();
+    } catch {
+      // ignore
+    } finally {
+      setDepositing(false);
+    }
+  };
+
+  const checkedInCount = participants.filter((p) => p.checked_in).length;
+
+  return (
+    <>
+      <Card className="h-full overflow-hidden flex flex-col" padding="sm">
+        <div className="px-3 pt-2 pb-3 flex items-center justify-between">
+          <CardTitle className="text-base">Участники ({participants.length})</CardTitle>
+          <span className="text-[10px] text-warm-400">
+            <Check className="w-3 h-3 inline" /> {checkedInCount}/{participants.length}
+          </span>
+        </div>
+        <div className="flex-1 overflow-y-auto divide-y divide-warm-100">
+          {participants.map((p) => {
+            const name = getParticipantName(p);
+            return (
+              <div key={p.id} className="flex items-center gap-2 px-3 py-2">
+                <Avatar name={name} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-warm-700 truncate">{name}</div>
+                  <div className="text-[10px] text-warm-400">{formatBarters(p.balance_b)}</div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!p.checked_in ? (
+                    <button
+                      onClick={() => handleCheckIn(p.user_id)}
+                      disabled={checkingIn === p.user_id}
+                      className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-[10px] font-medium transition-colors disabled:opacity-50"
+                    >
+                      {checkingIn === p.user_id ? <Loader2 className="w-3 h-3 animate-spin" /> : "Check-in"}
+                    </button>
+                  ) : (
+                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                  )}
+                  <button
+                    onClick={() => setDepositTarget(p)}
+                    className="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 text-[10px] font-medium transition-colors"
+                  >
+                    +Б
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {depositTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-display font-bold text-lg text-warm-800 mb-1">Зачислить Бартеры</h3>
+            <p className="text-sm text-warm-400 mb-4">{getParticipantName(depositTarget)}</p>
+            <label className="text-sm text-warm-500 mb-2 block">Сумма в рублях</label>
+            <input
+              type="number"
+              value={depositAmount}
+              onChange={(e) => setDepositAmount(e.target.value)}
+              className="w-full text-2xl font-display font-bold text-center py-4 bg-white rounded-xl border-2 border-warm-200 focus:border-brand-amber focus:outline-none text-warm-800 mb-2"
+            />
+            <p className="text-xs text-warm-400 text-center mb-4">
+              = {formatBarters(Number(depositAmount || 0) * 10)} будет зачислено
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setDepositTarget(null)}>Отмена</Button>
+              <Button className="flex-1" onClick={handleDeposit} disabled={depositing || !Number(depositAmount)}>
+                {depositing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Зачислить"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

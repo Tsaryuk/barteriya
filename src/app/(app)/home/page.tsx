@@ -153,7 +153,7 @@ function RecentDeals() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-display font-semibold text-warm-800">Последние сделки</h2>
-        <Link href="#" className="text-xs text-brand-amber font-medium">Все</Link>
+        <Link href="/history" className="text-xs text-brand-amber font-medium">Все</Link>
       </div>
 
       {loading ? (
