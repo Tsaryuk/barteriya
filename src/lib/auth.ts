@@ -83,16 +83,18 @@ export async function getOrCreateUser(data: TelegramLoginData) {
     .single();
 
   if (existing) {
-    // Update username/name if changed
+    // Update username/name/photo if changed
+    const updates: Record<string, unknown> = {
+      username: data.username || existing.username,
+      first_name: data.first_name,
+      last_name: data.last_name || existing.last_name,
+    };
+    if (data.photo_url) updates.photo_url = data.photo_url;
     await supabase
       .from("users")
-      .update({
-        username: data.username || existing.username,
-        first_name: data.first_name,
-        last_name: data.last_name || existing.last_name,
-      })
+      .update(updates)
       .eq("id", existing.id);
-    return existing;
+    return { ...existing, ...updates };
   }
 
   const { data: newUser, error } = await supabase
@@ -102,6 +104,7 @@ export async function getOrCreateUser(data: TelegramLoginData) {
       username: data.username,
       first_name: data.first_name,
       last_name: data.last_name,
+      photo_url: data.photo_url || null,
     })
     .select()
     .single();

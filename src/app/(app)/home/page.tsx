@@ -17,6 +17,7 @@ import {
   ArrowRightLeft,
   TrendingUp,
   Loader2,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
@@ -91,10 +92,11 @@ function QuickActions() {
     { icon: <Mic className="w-5 h-5" />, label: "Питч", color: "bg-violet-50 text-violet-600", href: "/pitch" },
     { icon: <QrCode className="w-5 h-5" />, label: "Каталог", color: "bg-emerald-50 text-emerald-600", href: "/catalog" },
     { icon: <ArrowRightLeft className="w-5 h-5" />, label: "Серт.", color: "bg-sky-50 text-sky-600", href: "/certificates" },
+    { icon: <FileText className="w-5 h-5" />, label: "Услуги", color: "bg-rose-50 text-rose-600", href: "/services" },
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-5 gap-2">
       {actions.map((action) => (
         <Link key={action.label} href={action.href}>
           <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-white border border-warm-200/40 shadow-card hover:shadow-card-hover transition-all hover:-translate-y-0.5">

@@ -227,7 +227,7 @@ export default function CatalogPage() {
           return (
             <Card key={gs.id} className="relative">
               <div className="flex items-start gap-3">
-                <Avatar name={ownerName} size="md" className="shrink-0 mt-0.5" />
+                <Avatar name={ownerName} src={owner?.photo_url} size="md" className="shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div>
