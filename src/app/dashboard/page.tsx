@@ -71,7 +71,7 @@ export default function DashboardPage() {
       { table: "game_participants", event: "*", filter: selectedGameId ? `game_id=eq.${selectedGameId}` : undefined, callback: () => fetchDashboard() },
       { table: "pitch_sessions", event: "*", filter: selectedGameId ? `game_id=eq.${selectedGameId}` : undefined, callback: () => fetchDashboard() },
       { table: "games", event: "UPDATE", filter: selectedGameId ? `id=eq.${selectedGameId}` : undefined, callback: () => fetchDashboard() },
-      { table: "certificates", event: "*", filter: selectedGameId ? `game_id=eq.${selectedGameId}` : undefined, callback: () => fetchDashboard() },
+      { table: "purchased_certificates", event: "*", filter: selectedGameId ? `game_id=eq.${selectedGameId}` : undefined, callback: () => fetchDashboard() },
     ],
     !!selectedGameId
   );
@@ -535,17 +535,17 @@ function StatCard({
 
 /* ─── Cert Donut ─────────────────────────────────── */
 
-function CertDonut({ data }: { data: { active: number; activated: number; cancelled: number } }) {
-  const total = data.active + data.activated + data.cancelled;
+function CertDonut({ data }: { data: { active: number; redeemed: number; expired: number } }) {
+  const total = data.active + data.redeemed + data.expired;
   if (total === 0) {
     return <p className="text-sm text-warm-400">Нет сертификатов</p>;
   }
   const r = 50;
   const circumference = 2 * Math.PI * r;
   const segments = [
-    { value: data.activated, color: "#4DAA6D", label: "Выполнены" },
+    { value: data.redeemed, color: "#4DAA6D", label: "Погашены" },
     { value: data.active, color: "#E8960C", label: "Активны" },
-    { value: data.cancelled, color: "#E8E2D6", label: "Отменены" },
+    { value: data.expired, color: "#E8E2D6", label: "Истекли" },
   ];
 
   let offset = 0;

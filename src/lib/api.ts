@@ -49,8 +49,10 @@ export interface DBUser {
   username: string | null;
   first_name: string;
   last_name: string | null;
+  phone: string | null;
+  photo_url: string | null;
   about: string | null;
-  role: "user" | "organizer" | "admin";
+  role: "user" | "manager" | "admin";
   tariff_id: string | null;
   tariff_expires_at: string | null;
   created_at: string;
@@ -65,6 +67,8 @@ export interface DBGame {
   status: "draft" | "open" | "active" | "done" | "archive";
   max_participants: number | null;
   pitch_duration_sec: number;
+  ticket_price_rub: number;
+  bank_open: boolean;
   organizer_id: string;
   created_at: string;
   organizer?: { id: string; first_name: string; last_name: string | null; username: string | null };
@@ -79,8 +83,12 @@ export interface DBParticipant {
   balance_b: number;
   pitch_order: number | null;
   pitch_status: "waiting" | "active" | "done";
+  checked_in: boolean;
+  checked_in_at: string | null;
+  paid: boolean;
+  paid_at: string | null;
   joined_at: string;
-  user?: { id: string; first_name: string; last_name: string | null; username: string | null; about: string | null };
+  user?: { id: string; first_name: string; last_name: string | null; username: string | null; about: string | null; photo_url: string | null; phone: string | null };
 }
 
 export interface DBTransaction {
@@ -97,19 +105,60 @@ export interface DBTransaction {
   to_user?: { id: string; first_name: string; last_name: string | null } | null;
 }
 
-export interface DBCertificate {
+// Услуга/предложение (шаблон, создаётся участником)
+export interface DBService {
   id: string;
-  transaction_id: string;
-  seller_id: string;
-  buyer_id: string;
-  game_id: string;
-  service_description: string;
-  amount_b: number;
-  status: "active" | "activated" | "cancelled";
-  activated_at: string | null;
+  owner_id: string;
+  title: string;
+  description: string | null;
+  price_b: number;
+  original_price_rub: number | null;
+  quantity: number | null; // null = безлимит
+  expires_days: number;
+  is_active: boolean;
   created_at: string;
-  seller?: { id: string; first_name: string; last_name: string | null; username: string | null };
-  buyer?: { id: string; first_name: string; last_name: string | null; username: string | null };
+  owner?: { id: string; first_name: string; last_name: string | null; username: string | null; photo_url: string | null; phone: string | null };
+}
+
+// Услуга, выставленная на конкретную игру
+export interface DBGameService {
+  id: string;
+  game_id: string;
+  service_id: string;
+  quantity_remaining: number | null;
+  is_active: boolean;
+  service?: DBService;
+}
+
+// Купленный сертификат (экземпляр у покупателя)
+export interface DBPurchasedCertificate {
+  id: string;
+  service_id: string;
+  game_service_id: string | null;
+  game_id: string;
+  buyer_id: string;
+  seller_id: string;
+  amount_b: number;
+  transaction_id: string | null;
+  status: "active" | "redeemed" | "expired";
+  redeemed_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  service?: DBService;
+  seller?: { id: string; first_name: string; last_name: string | null; username: string | null; phone: string | null; photo_url: string | null };
+  buyer?: { id: string; first_name: string; last_name: string | null; username: string | null; phone: string | null; photo_url: string | null };
+}
+
+// Отзыв
+export interface DBReview {
+  id: string;
+  purchase_id: string;
+  author_id: string;
+  target_id: string;
+  rating: number;
+  text: string | null;
+  created_at: string;
+  author?: { id: string; first_name: string; last_name: string | null; photo_url: string | null };
 }
 
 export interface DBPitchSession {
@@ -141,7 +190,7 @@ export interface DashboardData {
     totalBartersInCirculation: number;
     dealsPerMinute: number;
     avgDealSize: number;
-    certsByStatus: { active: number; activated: number; cancelled: number };
+    certsByStatus: { active: number; redeemed: number; expired: number };
   };
   participants: DBParticipant[];
   transactions: DBTransaction[];
@@ -155,6 +204,10 @@ export const api = {
   loginTelegram: (data: TelegramUser) =>
     fetchAPI<AuthResponse>("/auth/telegram", { method: "POST", body: JSON.stringify(data) }),
 
+  // User
+  updateProfile: (data: { about?: string; phone?: string }) =>
+    fetchAPI<DBUser>("/user/profile", { method: "PATCH", body: JSON.stringify(data) }),
+
   // Games
   getGames: () => fetchAPI<DBGame[]>("/games"),
   getGame: (id: string) => fetchAPI<DBGame>(`/games/${id}`),
@@ -164,12 +217,14 @@ export const api = {
     fetchAPI<DBGame>(`/games/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   joinGame: (id: string) =>
     fetchAPI<DBParticipant>(`/games/${id}/join`, { method: "POST" }),
+  checkIn: (gameId: string, userId: string) =>
+    fetchAPI<DBParticipant>(`/games/${gameId}/checkin`, { method: "POST", body: JSON.stringify({ userId }) }),
 
   // Bank
-  deposit: (gameId: string, amountRub: number) =>
+  deposit: (gameId: string, amountRub: number, userId?: string) =>
     fetchAPI<{ transaction: DBTransaction; newBalance: number }>("/bank/deposit", {
       method: "POST",
-      body: JSON.stringify({ gameId, amountRub }),
+      body: JSON.stringify({ gameId, amountRub, userId }),
     }),
   withdraw: (gameId: string, amountB: number) =>
     fetchAPI<{ transaction: DBTransaction; newBalance: number }>("/bank/withdraw", {
@@ -177,7 +232,41 @@ export const api = {
       body: JSON.stringify({ gameId, amountB }),
     }),
 
-  // Transfers
+  // Services (user's offerings)
+  getMyServices: () => fetchAPI<DBService[]>("/services"),
+  createService: (data: { title: string; description?: string; price_b: number; original_price_rub?: number; quantity?: number; expires_days?: number }) =>
+    fetchAPI<DBService>("/services", { method: "POST", body: JSON.stringify(data) }),
+  updateService: (id: string, data: Partial<DBService>) =>
+    fetchAPI<DBService>(`/services/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteService: (id: string) =>
+    fetchAPI<{ ok: boolean }>(`/services/${id}`, { method: "DELETE" }),
+
+  // Game services (catalog)
+  getGameCatalog: (gameId: string) => fetchAPI<DBGameService[]>(`/games/${gameId}/catalog`),
+  addServiceToGame: (gameId: string, serviceId: string) =>
+    fetchAPI<DBGameService>(`/games/${gameId}/catalog`, { method: "POST", body: JSON.stringify({ serviceId }) }),
+  removeServiceFromGame: (gameId: string, gameServiceId: string) =>
+    fetchAPI<{ ok: boolean }>(`/games/${gameId}/catalog/${gameServiceId}`, { method: "DELETE" }),
+
+  // Purchases (buy certificate via QR transfer)
+  buyCertificate: (gameId: string, gameServiceId: string) =>
+    fetchAPI<{ purchase: DBPurchasedCertificate; transaction: DBTransaction }>("/purchases", {
+      method: "POST",
+      body: JSON.stringify({ gameId, gameServiceId }),
+    }),
+  getMyPurchases: (gameId?: string) =>
+    fetchAPI<DBPurchasedCertificate[]>(`/purchases${gameId ? `?gameId=${gameId}` : ""}`),
+  getMySales: (gameId?: string) =>
+    fetchAPI<DBPurchasedCertificate[]>(`/purchases/sales${gameId ? `?gameId=${gameId}` : ""}`),
+  redeemCertificate: (id: string) =>
+    fetchAPI<DBPurchasedCertificate>(`/purchases/${id}/redeem`, { method: "POST" }),
+
+  // Reviews
+  createReview: (purchaseId: string, rating: number, text?: string) =>
+    fetchAPI<DBReview>("/reviews", { method: "POST", body: JSON.stringify({ purchaseId, rating, text }) }),
+  getUserReviews: (userId: string) => fetchAPI<DBReview[]>(`/reviews?userId=${userId}`),
+
+  // Transfers (direct barter transfer, kept for flexibility)
   transfer: (gameId: string, toUserId: string, amountB: number, serviceDescription: string) =>
     fetchAPI<{ transaction: DBTransaction; senderBalance: number }>("/transfers", {
       method: "POST",
@@ -185,12 +274,6 @@ export const api = {
     }),
   getTransactions: (gameId: string) =>
     fetchAPI<DBTransaction[]>(`/transfers?gameId=${gameId}`),
-
-  // Certificates
-  getCertificates: (gameId?: string) =>
-    fetchAPI<DBCertificate[]>(`/certificates${gameId ? `?gameId=${gameId}` : ""}`),
-  activateCertificate: (id: string) =>
-    fetchAPI<DBCertificate>(`/certificates/${id}/activate`, { method: "POST" }),
 
   // Pitch
   getPitchSession: (gameId: string) =>
@@ -208,6 +291,11 @@ export const api = {
     fetchAPI<{ paymentId: string; confirmationUrl: string }>("/payments", {
       method: "POST",
       body: JSON.stringify({ tariffId }),
+    }),
+  payForGame: (gameId: string) =>
+    fetchAPI<{ paymentId: string; confirmationUrl: string }>("/payments", {
+      method: "POST",
+      body: JSON.stringify({ gameId }),
     }),
 
   // Tariffs (via Supabase direct)

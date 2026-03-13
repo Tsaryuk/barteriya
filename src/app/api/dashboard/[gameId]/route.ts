@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
 
     // Certificates stats
     const { data: certificates } = await supabase
-      .from("certificates")
+      .from("purchased_certificates")
       .select("status")
       .eq("game_id", params.gameId);
 
@@ -98,8 +98,8 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
 
     const certsByStatus = {
       active: certList.filter((c) => c.status === "active").length,
-      activated: certList.filter((c) => c.status === "activated").length,
-      cancelled: certList.filter((c) => c.status === "cancelled").length,
+      redeemed: certList.filter((c) => c.status === "redeemed").length,
+      expired: certList.filter((c) => c.status === "expired").length,
     };
 
     // Top participants by deal volume

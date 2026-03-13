@@ -58,7 +58,7 @@ export default function ProfilePage() {
         )}
         <Badge variant="amber" className="mb-4">
           <Crown className="w-3 h-3 mr-1" />
-          {user.role === "admin" ? "Админ" : user.role === "organizer" ? "Организатор" : "Участник"}
+          {user.role === "admin" ? "Админ" : user.role === "manager" ? "Менеджер" : "Участник"}
         </Badge>
         {user.about && (
           <p className="text-sm text-warm-500 leading-relaxed mb-4">{user.about}</p>
@@ -68,6 +68,19 @@ export default function ProfilePage() {
           Редактировать
         </Button>
       </Card>
+
+      <Link href="/services">
+        <Card hover className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-brand-amber-light flex items-center justify-center">
+            <FileText className="w-5 h-5 text-brand-amber" />
+          </div>
+          <div className="flex-1">
+            <div className="font-semibold text-warm-800 text-sm">Мои предложения</div>
+            <div className="text-xs text-warm-400">Сертификаты для игр</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-warm-300" />
+        </Card>
+      </Link>
 
       {user.tariff_id && (
         <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200/60">

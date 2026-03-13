@@ -18,6 +18,7 @@ import {
   ArrowRightLeft,
   ChevronLeft,
   Loader2,
+  ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -115,6 +116,22 @@ export default function GameDetailPage() {
           </div>
         ))}
       </div>
+
+      {isParticipant && (game.status === "active" || game.status === "open") && (
+        <Link href="/catalog">
+          <Card hover className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/60">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-amber-800">Каталог предложений</CardTitle>
+                <p className="text-xs text-amber-500 mt-0.5">Сертификаты участников для покупки</p>
+              </div>
+            </div>
+          </Card>
+        </Link>
+      )}
 
       {(game.status === "active" || game.pitch_session) && (
         <Link href="/pitch">
