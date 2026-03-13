@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { api, type DBGame } from "@/lib/api";
 import { useGame } from "@/context/game";
 import { useAuth } from "@/context/auth";
-import { formatBarters } from "@/lib/utils";
+import { formatBarters, formatRubles } from "@/lib/utils";
 import {
   MapPin,
   Calendar,
@@ -57,6 +57,18 @@ export default function GameDetailPage() {
     setJoining(true);
     try {
       await api.joinGame(game.id);
+      // If ticket price exists, redirect to payment
+      if (game.ticket_price_rub && game.ticket_price_rub > 0) {
+        try {
+          const { confirmationUrl } = await api.payForGame(game.id);
+          if (confirmationUrl) {
+            window.location.href = confirmationUrl;
+            return;
+          }
+        } catch {
+          // Payment failed, but user is already joined
+        }
+      }
       const updated = await api.getGame(game.id);
       setGame(updated);
       setActiveGame(updated);
@@ -243,7 +255,13 @@ export default function GameDetailPage() {
               onClick={handleJoin}
               disabled={joining}
             >
-              {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : "Записаться на игру"}
+              {joining ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : game.ticket_price_rub && game.ticket_price_rub > 0 ? (
+                `Записаться · ${formatRubles(game.ticket_price_rub)}`
+              ) : (
+                "Записаться на игру"
+              )}
             </Button>
           )}
         </div>

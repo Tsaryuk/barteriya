@@ -64,6 +64,32 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      if (type === "game_ticket" && userId) {
+        const gameId = payment.metadata?.game_id;
+        if (gameId) {
+          // Mark participant as paid
+          await supabase
+            .from("game_participants")
+            .update({ paid: true, paid_at: new Date().toISOString() })
+            .eq("game_id", gameId)
+            .eq("user_id", userId);
+
+          // Notify via Telegram
+          const { data: ticketUser } = await supabase
+            .from("users")
+            .select("telegram_id")
+            .eq("id", userId)
+            .single();
+
+          if (ticketUser?.telegram_id) {
+            notifyUser(
+              ticketUser.telegram_id,
+              `✅ <b>Билет оплачен!</b>\n\nВы записаны на игру. Ждём вас!`
+            ).catch(() => {});
+          }
+        }
+      }
+
       if (type === "deposit" && userId) {
         const gameId = payment.metadata?.game_id;
         const amountRub = Number(payment.amount?.value || 0);

@@ -71,7 +71,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         filter: activeGame ? `id=eq.${activeGame.id}` : undefined,
         callback: (payload) => {
           const updated = payload.new as unknown as DBGame;
-          setActiveGameState((prev) => prev ? { ...prev, status: updated.status } : prev);
+          setActiveGameState((prev) => prev ? { ...prev, status: updated.status, bank_open: updated.bank_open } : prev);
         },
       },
     ],
