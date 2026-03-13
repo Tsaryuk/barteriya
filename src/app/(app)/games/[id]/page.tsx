@@ -216,15 +216,12 @@ export default function GameDetailPage() {
               </div>
             </div>
           </Card>
-          <div className="flex gap-3">
-            <Button className="flex-1">
+          <Link href="/bank">
+            <Button className="w-full">
               <ArrowRightLeft className="w-4 h-4" />
-              Купить Б
+              Перейти в банк
             </Button>
-            <Button variant="outline" className="flex-1">
-              Продать Б
-            </Button>
-          </div>
+          </Link>
         </div>
       )}
 

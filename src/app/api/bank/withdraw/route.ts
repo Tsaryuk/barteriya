@@ -20,6 +20,17 @@ export async function POST(req: NextRequest) {
     const amountRub = Math.floor(amountB / EXCHANGE_RATE);
     const supabase = createServerClient();
 
+    // Check that bank is open
+    const { data: game } = await supabase
+      .from("games")
+      .select("bank_open")
+      .eq("id", gameId)
+      .single();
+
+    if (!game?.bank_open) {
+      return NextResponse.json({ error: "Bank is closed" }, { status: 400 });
+    }
+
     // Verify participant and check balance
     const { data: participant } = await supabase
       .from("game_participants")

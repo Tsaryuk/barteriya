@@ -67,21 +67,6 @@ export async function POST(req: NextRequest) {
 
     if (txError) throw txError;
 
-    // Create certificate
-    const { error: certError } = await supabase
-      .from("certificates")
-      .insert({
-        transaction_id: transaction.id,
-        seller_id: toUserId,
-        buyer_id: auth.userId,
-        game_id: gameId,
-        service_description: serviceDescription,
-        amount_b: amountB,
-        status: "active",
-      });
-
-    if (certError) throw certError;
-
     // Update balances
     await supabase
       .from("game_participants")

@@ -87,7 +87,7 @@ function BalanceCard() {
 
 function QuickActions() {
   const actions = [
-    { icon: <Landmark className="w-5 h-5" />, label: "Банк", color: "bg-amber-50 text-amber-600", href: "#" },
+    { icon: <Landmark className="w-5 h-5" />, label: "Банк", color: "bg-amber-50 text-amber-600", href: "/bank" },
     { icon: <Mic className="w-5 h-5" />, label: "Питч", color: "bg-violet-50 text-violet-600", href: "/pitch" },
     { icon: <QrCode className="w-5 h-5" />, label: "Каталог", color: "bg-emerald-50 text-emerald-600", href: "/catalog" },
     { icon: <ArrowRightLeft className="w-5 h-5" />, label: "Серт.", color: "bg-sky-50 text-sky-600", href: "/certificates" },

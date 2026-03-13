@@ -152,6 +152,8 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <GameStatusControl gameId={game.id} status={game.status} onRefresh={fetchDashboard} />
 
+          <BankToggle gameId={game.id} bankOpen={game.bank_open} onRefresh={fetchDashboard} />
+
           <button
             onClick={() => setShowPitch(true)}
             className="flex items-center gap-2 bg-violet-100 hover:bg-violet-200 text-violet-700 px-4 py-2 rounded-xl transition-colors font-medium text-sm"
@@ -767,6 +769,51 @@ function PitchOverlay({
         })}
       </div>
     </div>
+  );
+}
+
+/* ─── Bank Toggle ────────────────────────────────── */
+
+function BankToggle({
+  gameId,
+  bankOpen,
+  onRefresh,
+}: {
+  gameId: string;
+  bankOpen: boolean;
+  onRefresh: () => void;
+}) {
+  const [toggling, setToggling] = useState(false);
+
+  const handleToggle = async () => {
+    setToggling(true);
+    try {
+      await api.updateGame(gameId, { bank_open: !bankOpen } as Partial<DBGame>);
+      onRefresh();
+    } catch {
+      // ignore
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={toggling}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 ${
+        bankOpen
+          ? "bg-amber-100 hover:bg-amber-200 text-amber-700"
+          : "bg-warm-100 hover:bg-warm-200 text-warm-500"
+      }`}
+    >
+      {toggling ? (
+        <Loader2 className="w-4 h-4 animate-spin" />
+      ) : (
+        <Landmark className="w-4 h-4" />
+      )}
+      {bankOpen ? "Банк открыт" : "Банк закрыт"}
+    </button>
   );
 }
 
