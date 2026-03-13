@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth";
 import { useGame } from "@/context/game";
+import { api } from "@/lib/api";
 import { formatBarters } from "@/lib/utils";
 import {
   Settings,
@@ -17,12 +18,16 @@ import {
   Shield,
   Crown,
   Loader2,
+  X,
+  Check,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 export default function ProfilePage() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, updateUser } = useAuth();
   const { myParticipant } = useGame();
+  const [editing, setEditing] = useState(false);
 
   if (loading) {
     return (
@@ -48,26 +53,40 @@ export default function ProfilePage() {
 
   return (
     <div className="p-4 space-y-5">
-      <Card className="text-center">
-        <Avatar name={fullName} size="xl" className="mx-auto mb-3" />
-        <h2 className="font-display font-bold text-xl text-warm-800">
-          {fullName}
-        </h2>
-        {user.username && (
-          <p className="text-sm text-warm-400 mb-1">@{user.username}</p>
-        )}
-        <Badge variant="amber" className="mb-4">
-          <Crown className="w-3 h-3 mr-1" />
-          {user.role === "admin" ? "Админ" : user.role === "manager" ? "Менеджер" : "Участник"}
-        </Badge>
-        {user.about && (
-          <p className="text-sm text-warm-500 leading-relaxed mb-4">{user.about}</p>
-        )}
-        <Button variant="outline" size="sm">
-          <Edit3 className="w-3.5 h-3.5" />
-          Редактировать
-        </Button>
-      </Card>
+      {editing ? (
+        <ProfileEditForm
+          user={user}
+          onSave={(updated) => {
+            updateUser(updated);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      ) : (
+        <Card className="text-center">
+          <Avatar name={fullName} size="xl" className="mx-auto mb-3" />
+          <h2 className="font-display font-bold text-xl text-warm-800">
+            {fullName}
+          </h2>
+          {user.username && (
+            <p className="text-sm text-warm-400 mb-1">@{user.username}</p>
+          )}
+          <Badge variant="amber" className="mb-4">
+            <Crown className="w-3 h-3 mr-1" />
+            {user.role === "admin" ? "Админ" : user.role === "manager" ? "Менеджер" : "Участник"}
+          </Badge>
+          {user.about && (
+            <p className="text-sm text-warm-500 leading-relaxed mb-4">{user.about}</p>
+          )}
+          {user.phone && (
+            <p className="text-xs text-warm-400 mb-4">{user.phone}</p>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Edit3 className="w-3.5 h-3.5" />
+            Редактировать
+          </Button>
+        </Card>
+      )}
 
       <Link href="/services">
         <Card hover className="flex items-center gap-3">
@@ -143,5 +162,107 @@ export default function ProfilePage() {
         </button>
       </Card>
     </div>
+  );
+}
+
+function ProfileEditForm({
+  user,
+  onSave,
+  onCancel,
+}: {
+  user: { first_name: string; last_name: string | null; about: string | null; phone: string | null };
+  onSave: (updated: import("@/lib/api").DBUser) => void;
+  onCancel: () => void;
+}) {
+  const [firstName, setFirstName] = useState(user.first_name);
+  const [lastName, setLastName] = useState(user.last_name || "");
+  const [about, setAbout] = useState(user.about || "");
+  const [phone, setPhone] = useState(user.phone || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firstName.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await api.updateProfile({
+        first_name: firstName.trim(),
+        last_name: lastName.trim() || undefined,
+        about: about.trim() || undefined,
+        phone: phone.trim() || undefined,
+      });
+      onSave(updated);
+    } catch (err) {
+      setError("Не удалось сохранить");
+      console.error("Profile save error:", err);
+      setSaving(false);
+    }
+  };
+
+  const inputClass =
+    "w-full rounded-xl border border-warm-200 bg-white px-4 py-2.5 text-sm text-warm-800 placeholder:text-warm-300 focus:outline-none focus:ring-2 focus:ring-brand-amber/40";
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-display font-semibold text-warm-800">Редактировать профиль</h2>
+        <button onClick={onCancel} className="p-1.5 text-warm-400 hover:text-warm-600">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 block">Имя *</label>
+            <input
+              className={inputClass}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 block">Фамилия</label>
+            <input
+              className={inputClass}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-warm-500 mb-1 block">Телефон</label>
+          <input
+            className={inputClass}
+            type="tel"
+            placeholder="+7 (999) 123-45-67"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-warm-500 mb-1 block">О себе</label>
+          <textarea
+            className={inputClass}
+            rows={3}
+            placeholder="Расскажите о своей деятельности..."
+            value={about}
+            onChange={(e) => setAbout(e.target.value)}
+          />
+        </div>
+        {error && <p className="text-xs text-brand-coral">{error}</p>}
+        <div className="flex gap-2 pt-2">
+          <Button type="submit" size="sm" disabled={saving} className="flex-1">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            Сохранить
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+            Отмена
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 }

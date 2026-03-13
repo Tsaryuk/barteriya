@@ -16,9 +16,11 @@ import {
   Plus,
   Check,
   ChevronLeft,
+  QrCode,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import { QRModal } from "@/components/qr-modal";
 
 export default function CatalogPage() {
   const { activeGame, myParticipant, refreshGame } = useGame();
@@ -31,6 +33,7 @@ export default function CatalogPage() {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [addingServiceId, setAddingServiceId] = useState<string | null>(null);
   const [bought, setBought] = useState<string | null>(null);
+  const [qrService, setQrService] = useState<{ id: string; title: string } | null>(null);
 
   const gameId = activeGame?.id;
 
@@ -199,6 +202,15 @@ export default function CatalogPage() {
         </Card>
       )}
 
+      {qrService && gameId && (
+        <QRModal
+          url={`${typeof window !== "undefined" ? window.location.origin : ""}/buy?gs=${qrService.id}&g=${gameId}`}
+          title={qrService.title}
+          subtitle="Покупатель сканирует этот QR"
+          onClose={() => setQrService(null)}
+        />
+      )}
+
       <div className="space-y-3">
         {catalog.map((gs) => {
           const service = gs.service;
@@ -223,7 +235,15 @@ export default function CatalogPage() {
                       <p className="text-xs text-warm-400 mt-0.5">{ownerName}</p>
                     </div>
                     {isOwn && (
-                      <Badge variant="outline" className="shrink-0 text-[10px]">Моё</Badge>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => setQrService({ id: gs.id, title: service.title })}
+                          className="p-1.5 text-warm-400 hover:text-brand-amber transition-colors"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                        <Badge variant="outline" className="text-[10px]">Моё</Badge>
+                      </div>
                     )}
                   </div>
                   {service.description && (

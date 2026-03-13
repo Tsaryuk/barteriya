@@ -8,7 +8,17 @@ import { api, type DBPurchasedCertificate } from "@/lib/api";
 import { useGame } from "@/context/game";
 import { useAuth } from "@/context/auth";
 import { formatBarters, formatTimeAgo } from "@/lib/utils";
-import { FileCheck, CheckCircle2, Clock, AlertCircle, Loader2, ShoppingBag, Store } from "lucide-react";
+import {
+  FileCheck,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Loader2,
+  ShoppingBag,
+  Store,
+  Star,
+  Send,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 
 const STATUS_CONFIG = {
@@ -25,13 +35,14 @@ export default function CertificatesPage() {
   const [certificates, setCertificates] = useState<DBPurchasedCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [redeeming, setRedeeming] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    const fetch = tab === "purchases"
+    const fetchData = tab === "purchases"
       ? api.getMyPurchases(activeGame?.id)
       : api.getMySales(activeGame?.id);
-    fetch
+    fetchData
       .then(setCertificates)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -162,7 +173,7 @@ export default function CertificatesPage() {
                       <div className="text-[10px] text-warm-400">Продавец</div>
                       <div className="text-xs font-medium text-warm-600">{sellerName}</div>
                     </div>
-                    <span className="text-warm-300 mx-1">→</span>
+                    <span className="text-warm-300 mx-1">&rarr;</span>
                     <Avatar name={buyerName} size="sm" />
                     <div>
                       <div className="text-[10px] text-warm-400">Покупатель</div>
@@ -175,32 +186,123 @@ export default function CertificatesPage() {
                   <div className="font-display font-semibold text-brand-amber">
                     {formatBarters(cert.amount_b)}
                   </div>
-                  {cert.status === "active" && isSeller && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleRedeem(cert.id)}
-                      disabled={redeeming === cert.id}
-                    >
-                      {redeeming === cert.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <FileCheck className="w-3.5 h-3.5" />
-                      )}
-                      Погасить
-                    </Button>
-                  )}
-                  {cert.expires_at && cert.status === "active" && (
-                    <span className="text-[10px] text-warm-400">
-                      до {new Date(cert.expires_at).toLocaleDateString("ru-RU")}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {cert.status === "active" && isSeller && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleRedeem(cert.id)}
+                        disabled={redeeming === cert.id}
+                      >
+                        {redeeming === cert.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <FileCheck className="w-3.5 h-3.5" />
+                        )}
+                        Погасить
+                      </Button>
+                    )}
+                    {cert.status === "redeemed" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReviewingId(reviewingId === cert.id ? null : cert.id)}
+                      >
+                        <Star className="w-3.5 h-3.5" />
+                        Отзыв
+                      </Button>
+                    )}
+                    {cert.expires_at && cert.status === "active" && (
+                      <span className="text-[10px] text-warm-400">
+                        до {new Date(cert.expires_at).toLocaleDateString("ru-RU")}
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                {reviewingId === cert.id && (
+                  <ReviewForm
+                    purchaseId={cert.id}
+                    onDone={() => setReviewingId(null)}
+                  />
+                )}
               </Card>
             );
           })
         )}
       </div>
     </div>
+  );
+}
+
+function ReviewForm({ purchaseId, onDone }: { purchaseId: string; onDone: () => void }) {
+  const [rating, setRating] = useState(5);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await api.createReview(purchaseId, rating, text.trim() || undefined);
+      setSuccess(true);
+      setTimeout(onDone, 1500);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Ошибка";
+      setError(msg);
+      setSaving(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="mt-3 pt-3 border-t border-warm-100 text-center py-3">
+        <CheckCircle2 className="w-6 h-6 text-brand-sage mx-auto mb-1" />
+        <p className="text-sm text-brand-sage font-medium">Отзыв отправлен</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 pt-3 border-t border-warm-100 space-y-3">
+      <div>
+        <label className="text-xs font-medium text-warm-500 mb-2 block">Оценка</label>
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setRating(n)}
+              className="p-0.5"
+            >
+              <Star
+                className={`w-6 h-6 transition-colors ${
+                  n <= rating
+                    ? "text-amber-400 fill-amber-400"
+                    : "text-warm-200"
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <textarea
+          className="w-full rounded-xl border border-warm-200 bg-white px-4 py-2.5 text-sm text-warm-800 placeholder:text-warm-300 focus:outline-none focus:ring-2 focus:ring-brand-amber/40"
+          rows={2}
+          placeholder="Комментарий (необязательно)"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </div>
+      {error && <p className="text-xs text-brand-coral">{error}</p>}
+      <Button type="submit" size="sm" disabled={saving}>
+        {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+        Отправить
+      </Button>
+    </form>
   );
 }
