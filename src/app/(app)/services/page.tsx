@@ -13,12 +13,18 @@ export default function ServicesPage() {
   const [services, setServices] = useState<DBService[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [error, setError] = useState("");
 
   const load = useCallback(() => {
-    api.getMyServices().then((data) => {
-      setServices(data.filter((s) => s.is_active));
-      setLoading(false);
-    });
+    setError("");
+    api.getMyServices()
+      .then((data) => {
+        setServices(data.filter((s) => s.is_active));
+      })
+      .catch((err) => {
+        setError(err.message || "Не удалось загрузить услуги");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -59,7 +65,14 @@ export default function ServicesPage() {
         />
       )}
 
-      {services.length === 0 && !showForm && (
+      {error && (
+        <Card className="text-center py-8">
+          <p className="text-brand-coral text-sm mb-3">{error}</p>
+          <Button size="sm" variant="outline" onClick={load}>Повторить</Button>
+        </Card>
+      )}
+
+      {!error && services.length === 0 && !showForm && (
         <Card className="text-center py-12">
           <Package className="w-10 h-10 text-warm-300 mx-auto mb-3" />
           <p className="text-warm-400 mb-4">У тебя пока нет предложений</p>
