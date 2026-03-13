@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
     const telegramId = msg.from.id;
     const text = msg.text.trim();
 
-    if (text === "/start") {
+    if (text.startsWith("/start login_")) {
+      const loginToken = text.replace("/start login_", "").trim();
+      await handleLoginToken(chatId, telegramId, msg.from, loginToken);
+    } else if (text === "/start") {
       await handleStart(chatId, telegramId, msg.from.first_name);
     } else if (text === "/game" || text === "/games") {
       await handleGame(chatId, telegramId);
@@ -41,6 +44,73 @@ export async function POST(req: NextRequest) {
     console.error("Webhook error:", error);
     return NextResponse.json({ ok: true }); // Always 200 for Telegram
   }
+}
+
+interface TelegramFrom {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+}
+
+async function handleLoginToken(chatId: number, telegramId: number, from: TelegramFrom, token: string) {
+  const supabase = createServerClient();
+
+  // Check token exists and not expired
+  const { data: authToken } = await supabase
+    .from("auth_tokens")
+    .select("token, expires_at, confirmed_at")
+    .eq("token", token)
+    .single();
+
+  if (!authToken) {
+    await sendMessage({ chat_id: chatId, text: "Ссылка для входа недействительна." });
+    return;
+  }
+
+  if (new Date(authToken.expires_at) < new Date()) {
+    await sendMessage({ chat_id: chatId, text: "Ссылка для входа истекла. Попробуй заново на сайте." });
+    return;
+  }
+
+  if (authToken.confirmed_at) {
+    await sendMessage({ chat_id: chatId, text: "Эта ссылка уже была использована." });
+    return;
+  }
+
+  // Get or create user
+  let user = await supabase
+    .from("users")
+    .select("id, first_name")
+    .eq("telegram_id", telegramId)
+    .single()
+    .then((r) => r.data);
+
+  if (!user) {
+    const { data: newUser } = await supabase
+      .from("users")
+      .insert({
+        telegram_id: telegramId,
+        first_name: from.first_name,
+        last_name: from.last_name || null,
+        username: from.username || null,
+      })
+      .select("id, first_name")
+      .single();
+    user = newUser;
+  }
+
+  // Confirm the token
+  await supabase
+    .from("auth_tokens")
+    .update({ telegram_id: telegramId, confirmed_at: new Date().toISOString() })
+    .eq("token", token);
+
+  const name = user?.first_name || from.first_name;
+  await sendMessage({
+    chat_id: chatId,
+    text: `Привет, ${escapeHtml(name)}! Вход подтверждён. Вернись на сайт — он откроется автоматически.`,
+  });
 }
 
 async function handleStart(chatId: number, telegramId: number, firstName: string) {
