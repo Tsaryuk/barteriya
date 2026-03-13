@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "barteriya-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "export PATH=/Users/a1/.fnm:$PATH && eval \"$(fnm env)\" && npm run dev -- -p $PORT"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

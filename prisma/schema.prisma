@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  user
+  organizer
+  admin
+}
+
+enum GameStatus {
+  draft
+  open
+  active
+  done
+  archive
+}
+
+enum PitchStatus {
+  waiting
+  active
+  done
+}
+
+enum PitchSessionStatus {
+  pending
+  active
+  paused
+  done
+}
+
+enum TransactionType {
+  bank_in
+  bank_out
+  transfer
+  refund
+}
+
+enum CertificateStatus {
+  active
+  activated
+  cancelled
+}
+
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  telegramId      BigInt    @unique @map("telegram_id")
+  username        String?
+  firstName       String    @map("first_name")
+  lastName        String?   @map("last_name")
+  about           String?
+  role            UserRole  @default(user)
+  tariffId        String?   @map("tariff_id") @db.Uuid
+  tariffExpiresAt DateTime? @map("tariff_expires_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  tariff               Tariff?           @relation(fields: [tariffId], references: [id])
+  organizedGames       Game[]            @relation("GameOrganizer")
+  participations       GameParticipant[]
+  sentTransactions     Transaction[]     @relation("TransactionSender")
+  receivedTransactions Transaction[]     @relation("TransactionReceiver")
+  sellerCertificates   Certificate[]     @relation("CertificateSeller")
+  buyerCertificates    Certificate[]     @relation("CertificateBuyer")
+
+  @@map("users")
+}
+
+model Tariff {
+  id               String  @id @default(uuid()) @db.Uuid
+  name             String
+  durationDays     Int?    @map("duration_days")
+  priceRub         Int     @map("price_rub")
+  originalPriceRub Int?    @map("original_price_rub")
+  isActive         Boolean @default(true) @map("is_active")
+
+  users User[]
+
+  @@map("tariffs")
+}
+
+model Game {
+  id               String     @id @default(uuid()) @db.Uuid
+  title            String
+  description      String?
+  location         String?
+  eventDate        DateTime   @map("event_date") @db.Timestamptz
+  status           GameStatus @default(draft)
+  maxParticipants  Int?       @map("max_participants")
+  pitchDurationSec Int        @default(120) @map("pitch_duration_sec")
+  organizerId      String     @map("organizer_id") @db.Uuid
+  createdAt        DateTime   @default(now()) @map("created_at") @db.Timestamptz
+
+  organizer    User              @relation("GameOrganizer", fields: [organizerId], references: [id])
+  participants GameParticipant[]
+  transactions Transaction[]
+  certificates Certificate[]
+  pitchSession PitchSession?
+
+  @@map("games")
+}
+
+model GameParticipant {
+  id          String      @id @default(uuid()) @db.Uuid
+  gameId      String      @map("game_id") @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  balanceB    BigInt      @default(0) @map("balance_b")
+  pitchOrder  Int?        @map("pitch_order")
+  pitchStatus PitchStatus @default(waiting) @map("pitch_status")
+  joinedAt    DateTime    @default(now()) @map("joined_at") @db.Timestamptz
+
+  game          Game           @relation(fields: [gameId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  pitchSessions PitchSession[] @relation("PitchSessionParticipant")
+
+  @@unique([gameId, userId])
+  @@map("game_participants")
+}
+
+model Transaction {
+  id         String          @id @default(uuid()) @db.Uuid
+  gameId     String          @map("game_id") @db.Uuid
+  fromUserId String?         @map("from_user_id") @db.Uuid
+  toUserId   String?         @map("to_user_id") @db.Uuid
+  amountB    BigInt          @map("amount_b")
+  amountRub  Int?            @map("amount_rub")
+  type       TransactionType
+  note       String?
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  game        Game         @relation(fields: [gameId], references: [id])
+  fromUser    User?        @relation("TransactionSender", fields: [fromUserId], references: [id])
+  toUser      User?        @relation("TransactionReceiver", fields: [toUserId], references: [id])
+  certificate Certificate?
+
+  @@map("transactions")
+}
+
+model Certificate {
+  id                 String            @id @default(uuid()) @db.Uuid
+  transactionId      String            @unique @map("transaction_id") @db.Uuid
+  sellerId           String            @map("seller_id") @db.Uuid
+  buyerId            String            @map("buyer_id") @db.Uuid
+  gameId             String            @map("game_id") @db.Uuid
+  serviceDescription String            @map("service_description")
+  amountB            BigInt            @map("amount_b")
+  status             CertificateStatus @default(active)
+  activatedAt        DateTime?         @map("activated_at") @db.Timestamptz
+  createdAt          DateTime          @default(now()) @map("created_at") @db.Timestamptz
+
+  transaction Transaction @relation(fields: [transactionId], references: [id])
+  seller      User        @relation("CertificateSeller", fields: [sellerId], references: [id])
+  buyer       User        @relation("CertificateBuyer", fields: [buyerId], references: [id])
+  game        Game        @relation(fields: [gameId], references: [id])
+
+  @@map("certificates")
+}
+
+model PitchSession {
+  id               String             @id @default(uuid()) @db.Uuid
+  gameId           String             @unique @map("game_id") @db.Uuid
+  status           PitchSessionStatus @default(pending)
+  currentSpeakerId String?            @map("current_speaker_id") @db.Uuid
+  speakerStartedAt DateTime?          @map("speaker_started_at") @db.Timestamptz
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  game           Game             @relation(fields: [gameId], references: [id])
+  currentSpeaker GameParticipant? @relation("PitchSessionParticipant", fields: [currentSpeakerId], references: [id])
+
+  @@map("pitch_sessions")
+}
