@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .eq("id", auth.userId)
       .single();
 
-    if (!user || (user.role !== "organizer" && user.role !== "admin")) {
+    if (!user || (user.role !== "manager" && user.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         event_date: body.eventDate,
         max_participants: body.maxParticipants,
         pitch_duration_sec: body.pitchDurationSec || 120,
+        ticket_price_rub: body.ticketPriceRub || 0,
         organizer_id: auth.userId,
         status: "draft",
       })

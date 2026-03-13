@@ -466,8 +466,8 @@ function Footer() {
             <div>
               <h4 className="text-white font-semibold text-sm mb-3">Контакты</h4>
               <div className="space-y-2 text-sm">
-                <a href="#" className="block hover:text-white transition-colors">@barteria_bot</a>
-                <a href="#" className="block hover:text-white transition-colors">info@barteriya.ru</a>
+                <a href="https://t.me/barteria_bot" target="_blank" rel="noopener noreferrer" className="block hover:text-white transition-colors">@barteria_bot</a>
+                <a href="mailto:info@barteriya.ru" className="block hover:text-white transition-colors">info@barteriya.ru</a>
               </div>
             </div>
           </div>
