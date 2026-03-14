@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/auth";
-import { createPayment } from "@/lib/yookassa";
 
-// POST /api/payments - create a YooKassa payment (tariff or game ticket)
+const DEMO_MODE = !process.env.YOOKASSA_SHOP_ID || !process.env.YOOKASSA_SECRET_KEY;
+
+// POST /api/payments - create a payment (YooKassa or demo mode)
 export async function POST(req: NextRequest) {
   try {
     const auth = getUserFromRequest(req);
@@ -31,7 +32,24 @@ export async function POST(req: NextRequest) {
       if (!game) return NextResponse.json({ error: "Game not found" }, { status: 404 });
       if (game.status !== "open") return NextResponse.json({ error: "Game not open" }, { status: 400 });
       if (!game.ticket_price_rub || game.ticket_price_rub <= 0) {
-        return NextResponse.json({ error: "Game has no ticket price" }, { status: 400 });
+        // Free game — mark paid immediately
+        const { data: existing } = await supabase
+          .from("game_participants")
+          .select("id")
+          .eq("game_id", gameId)
+          .eq("user_id", auth.userId)
+          .single();
+        if (existing) {
+          await supabase
+            .from("game_participants")
+            .update({ paid: true, paid_at: new Date().toISOString() })
+            .eq("game_id", gameId)
+            .eq("user_id", auth.userId);
+        }
+        return NextResponse.json({
+          paymentId: "free",
+          confirmationUrl: `${proto}://${host}/games/${gameId}?payment=success`,
+        });
       }
 
       // Check if already paid
@@ -49,6 +67,32 @@ export async function POST(req: NextRequest) {
 
       const returnUrl = `${proto}://${host}/games/${gameId}?payment=success`;
 
+      if (DEMO_MODE) {
+        const paymentId = crypto.randomUUID();
+        await supabase.from("payments").insert({
+          id: paymentId,
+          user_id: auth.userId,
+          game_id: gameId,
+          amount_rub: game.ticket_price_rub,
+          status: "succeeded",
+          yookassa_id: `demo_${paymentId}`,
+        });
+
+        // Mark participant as paid
+        await supabase
+          .from("game_participants")
+          .update({ paid: true, paid_at: new Date().toISOString() })
+          .eq("game_id", gameId)
+          .eq("user_id", auth.userId);
+
+        return NextResponse.json({
+          paymentId,
+          confirmationUrl: returnUrl,
+        });
+      }
+
+      // Real YooKassa payment
+      const { createPayment } = await import("@/lib/yookassa");
       const payment = await createPayment({
         amountRub: game.ticket_price_rub,
         description: `Бартерия — билет на «${game.title}»`,
@@ -89,6 +133,23 @@ export async function POST(req: NextRequest) {
 
     const returnUrl = `${proto}://${host}/tariffs?payment=success`;
 
+    if (DEMO_MODE) {
+      const paymentId = crypto.randomUUID();
+      await supabase.from("payments").insert({
+        id: paymentId,
+        user_id: auth.userId,
+        tariff_id: tariffId,
+        amount_rub: tariff.price_rub,
+        status: "succeeded",
+        yookassa_id: `demo_${paymentId}`,
+      });
+      return NextResponse.json({
+        paymentId,
+        confirmationUrl: returnUrl,
+      });
+    }
+
+    const { createPayment } = await import("@/lib/yookassa");
     const payment = await createPayment({
       amountRub: tariff.price_rub,
       description: `Бартерия — тариф "${tariff.name}"`,

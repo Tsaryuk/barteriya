@@ -26,6 +26,29 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     }
 
+    // Get participant record
+    const { data: participant } = await supabase
+      .from("game_participants")
+      .select("id, paid, user_id")
+      .eq("game_id", params.id)
+      .eq("user_id", userId)
+      .single();
+
+    if (!participant) {
+      return NextResponse.json({ error: "Participant not found. Join the game first." }, { status: 404 });
+    }
+
+    // Check if game has a ticket price and if participant has paid
+    const { data: game } = await supabase
+      .from("games")
+      .select("ticket_price_rub")
+      .eq("id", params.id)
+      .single();
+
+    if (game && game.ticket_price_rub > 0 && !participant.paid) {
+      return NextResponse.json({ error: "Payment required. Please pay for the ticket first." }, { status: 403 });
+    }
+
     const { data, error } = await supabase
       .from("game_participants")
       .update({ checked_in: true, checked_in_at: new Date().toISOString() })
