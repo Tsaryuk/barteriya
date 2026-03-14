@@ -73,7 +73,7 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-  const { activeGame } = useGame();
+  const { activeGame, setActiveGame } = useGame();
   useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +85,15 @@ export default function DashboardPage() {
   const [depositUserId, setDepositUserId] = useState<string | null>(null);
   const [depositAmount, setDepositAmount] = useState("");
   const [depositing, setDepositing] = useState(false);
+
+  // Auto-load latest active/open game if none selected
+  useEffect(() => {
+    if (activeGame) return;
+    api.getGames().then((games) => {
+      const active = games.find((g) => g.status === "active") || games.find((g) => g.status === "open");
+      if (active) setActiveGame(active);
+    }).catch(() => {});
+  }, [activeGame, setActiveGame]);
 
   const gameId = activeGame?.id;
 
