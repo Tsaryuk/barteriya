@@ -26,14 +26,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user
+    const token = localStorage.getItem("barteriya_token");
     const stored = localStorage.getItem("barteriya_user");
-    if (stored) {
+
+    if (token && stored) {
       try {
-        setUser(JSON.parse(stored));
+        const cached = JSON.parse(stored);
+        setUser(cached);
       } catch {}
+
+      api.getProfile()
+        .then((fresh) => {
+          setUser(fresh);
+          localStorage.setItem("barteriya_user", JSON.stringify(fresh));
+        })
+        .catch(() => {
+          localStorage.removeItem("barteriya_token");
+          localStorage.removeItem("barteriya_user");
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
+    } else {
+      localStorage.removeItem("barteriya_token");
+      localStorage.removeItem("barteriya_user");
+      setLoading(false);
     }
-    setLoading(false);
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "barteriya_user" && e.newValue) {
+        try {
+          setUser(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === "barteriya_token" && !e.newValue) {
+        setUser(null);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const login = useCallback(async (telegramData: TelegramUser) => {

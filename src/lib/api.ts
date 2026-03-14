@@ -215,6 +215,7 @@ export const api = {
     fetchAPI<AuthResponse>("/auth/telegram", { method: "POST", body: JSON.stringify(data) }),
 
   // User
+  getProfile: () => fetchAPI<DBUser>("/user/profile"),
   updateProfile: (data: { about?: string; phone?: string; first_name?: string; last_name?: string }) =>
     fetchAPI<DBUser>("/user/profile", { method: "PATCH", body: JSON.stringify(data) }),
 

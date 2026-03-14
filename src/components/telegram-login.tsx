@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Send, Loader2, CheckCircle, ExternalLink } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { setToken } from "@/lib/api";
@@ -8,7 +7,6 @@ import { setToken } from "@/lib/api";
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "barteriya_bot";
 
 export function TelegramLoginButton({ className }: { className?: string }) {
-  const router = useRouter();
   const [state, setState] = useState<"idle" | "loading" | "ready" | "polling" | "done">("idle");
   const [loginToken, setLoginToken] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,7 +42,7 @@ export function TelegramLoginButton({ className }: { className?: string }) {
           setState("done");
           setToken(data.token);
           localStorage.setItem("barteriya_user", JSON.stringify(data.user));
-          setTimeout(() => router.push("/home"), 500);
+          setTimeout(() => { window.location.href = "/home"; }, 500);
         } else if (data.status === "expired" || data.status === "not_found") {
           cleanup();
           setState("idle");
@@ -54,7 +52,7 @@ export function TelegramLoginButton({ className }: { className?: string }) {
         // ignore
       }
     }, 3000);
-  }, [cleanup, router]);
+  }, [cleanup]);
 
   // Step 1: fetch login token
   const handlePrepare = async () => {
@@ -143,7 +141,6 @@ export function TelegramLoginButton({ className }: { className?: string }) {
 }
 
 export function DevLoginButton({ className }: { className?: string }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   if (process.env.NODE_ENV !== "development") return null;
@@ -164,7 +161,7 @@ export function DevLoginButton({ className }: { className?: string }) {
       });
       setToken(token);
       localStorage.setItem("barteriya_user", JSON.stringify(user));
-      router.push("/home");
+      window.location.href = "/home";
     } catch (err) {
       console.error("Dev login error:", err);
     } finally {

@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/auth";
 
+// GET /api/user/profile — get own profile
+export async function GET(req: NextRequest) {
+  try {
+    const auth = getUserFromRequest(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", auth.userId)
+      .single();
+
+    if (error || !data) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Get profile error:", error);
+    return NextResponse.json({ error: "Failed" }, { status: 500 });
+  }
+}
+
 // PATCH /api/user/profile — update own profile
 export async function PATCH(req: NextRequest) {
   try {
