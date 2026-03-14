@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTelegramLogin, getOrCreateUser, createJWT, type TelegramLoginData } from "@/lib/auth";
 
