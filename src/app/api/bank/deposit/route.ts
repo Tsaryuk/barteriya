@@ -80,17 +80,29 @@ export async function POST(req: NextRequest) {
 
     if (txError) throw txError;
 
-    // Update balance
+    // Update game balance
+    const newBalance = Number(participant.balance_b) + amountB;
     const { error: balError } = await supabase
       .from("game_participants")
-      .update({ balance_b: Number(participant.balance_b) + amountB })
+      .update({ balance_b: newBalance })
       .eq("id", participant.id);
 
     if (balError) throw balError;
 
+    // Sync global balance
+    const { data: userData } = await supabase
+      .from("users")
+      .select("balance_b")
+      .eq("id", targetUserId)
+      .single();
+    await supabase
+      .from("users")
+      .update({ balance_b: (Number(userData?.balance_b) || 0) + amountB })
+      .eq("id", targetUserId);
+
     return NextResponse.json({
       transaction,
-      newBalance: Number(participant.balance_b) + amountB,
+      newBalance,
     });
   } catch (error) {
     console.error("Deposit error:", error);

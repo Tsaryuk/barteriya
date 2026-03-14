@@ -54,6 +54,7 @@ export interface DBUser {
   about: string | null;
   role: "user" | "manager" | "admin";
   is_blocked: boolean;
+  balance_b: number;
   tariff_id: string | null;
   tariff_expires_at: string | null;
   created_at: string;

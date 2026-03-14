@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 
     if (txError) throw txError;
 
-    // Update balances
+    // Update game balances
     await supabase
       .from("game_participants")
       .update({ balance_b: Number(sender.balance_b) - amountB })
@@ -77,6 +77,27 @@ export async function POST(req: NextRequest) {
       .from("game_participants")
       .update({ balance_b: Number(receiver.balance_b) + amountB })
       .eq("id", receiver.id);
+
+    // Sync global balances
+    const { data: senderGlobal } = await supabase
+      .from("users")
+      .select("balance_b")
+      .eq("id", auth.userId)
+      .single();
+    await supabase
+      .from("users")
+      .update({ balance_b: Math.max(0, (Number(senderGlobal?.balance_b) || 0) - amountB) })
+      .eq("id", auth.userId);
+
+    const { data: receiverGlobal } = await supabase
+      .from("users")
+      .select("balance_b")
+      .eq("id", toUserId)
+      .single();
+    await supabase
+      .from("users")
+      .update({ balance_b: (Number(receiverGlobal?.balance_b) || 0) + amountB })
+      .eq("id", toUserId);
 
     // Notify recipient via Telegram (fire-and-forget)
     const { data: senderUser } = await supabase

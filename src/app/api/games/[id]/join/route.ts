@@ -57,12 +57,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const pitchOrder = (lastParticipant?.pitch_order || 0) + 1;
 
+    // Get user's global balance to carry over
+    const { data: userData } = await supabase
+      .from("users")
+      .select("balance_b")
+      .eq("id", auth.userId)
+      .single();
+    const globalBalance = Number(userData?.balance_b) || 0;
+
     const { data: participant, error } = await supabase
       .from("game_participants")
       .insert({
         game_id: params.id,
         user_id: auth.userId,
         pitch_order: pitchOrder,
+        balance_b: globalBalance,
       })
       .select(`*, user:users(id, first_name, last_name, username)`)
       .single();

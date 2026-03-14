@@ -50,7 +50,7 @@ export default function ProfilePage() {
   }
 
   const fullName = `${user.first_name}${user.last_name ? ` ${user.last_name}` : ""}`;
-  const balance = myParticipant?.balance_b ?? 0;
+  const balance = user.balance_b ?? myParticipant?.balance_b ?? 0;
 
   return (
     <div className="p-4 space-y-5">
