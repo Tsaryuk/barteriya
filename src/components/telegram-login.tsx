@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Send, Loader2, CheckCircle } from "lucide-react";
+import { Send, Loader2, CheckCircle, ExternalLink } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { setToken } from "@/lib/api";
 
@@ -9,7 +9,7 @@ const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "barteriya
 
 export function TelegramLoginButton({ className }: { className?: string }) {
   const router = useRouter();
-  const [state, setState] = useState<"idle" | "loading" | "polling" | "done">("idle");
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "polling" | "done">("idle");
   const [loginToken, setLoginToken] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -24,60 +24,56 @@ export function TelegramLoginButton({ className }: { className?: string }) {
     return cleanup;
   }, [cleanup]);
 
-  const openBot = useCallback((token: string) => {
-    const url = `https://t.me/${BOT_USERNAME}?start=login_${token}`;
-    // On iOS/mobile, window.open may be blocked. Use a link click approach.
-    const a = document.createElement("a");
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }, []);
+  const startPolling = useCallback((token: string) => {
+    if (pollRef.current) return;
+    setState("polling");
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 100) {
+        cleanup();
+        setState("idle");
+        setLoginToken(null);
+        return;
+      }
+      try {
+        const checkRes = await fetch(`/api/auth/bot-token?token=${token}`);
+        const data = await checkRes.json();
+        if (data.status === "confirmed" && data.token) {
+          cleanup();
+          setState("done");
+          setToken(data.token);
+          localStorage.setItem("barteriya_user", JSON.stringify(data.user));
+          setTimeout(() => router.push("/home"), 500);
+        } else if (data.status === "expired" || data.status === "not_found") {
+          cleanup();
+          setState("idle");
+          setLoginToken(null);
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000);
+  }, [cleanup, router]);
 
-  const handleLogin = async () => {
+  // Step 1: fetch login token
+  const handlePrepare = async () => {
     setState("loading");
     try {
       const res = await fetch("/api/auth/bot-token", { method: "POST" });
       const { token } = await res.json();
       setLoginToken(token);
-
-      openBot(token);
-
-      setState("polling");
-
-      // Poll for confirmation
-      let attempts = 0;
-      pollRef.current = setInterval(async () => {
-        attempts++;
-        if (attempts > 60) { // 5 min timeout (60 * 5s)
-          cleanup();
-          setState("idle");
-          return;
-        }
-
-        try {
-          const checkRes = await fetch(`/api/auth/bot-token?token=${token}`);
-          const data = await checkRes.json();
-
-          if (data.status === "confirmed" && data.token) {
-            cleanup();
-            setState("done");
-            setToken(data.token);
-            localStorage.setItem("barteriya_user", JSON.stringify(data.user));
-            setTimeout(() => router.push("/home"), 500);
-          } else if (data.status === "expired" || data.status === "not_found") {
-            cleanup();
-            setState("idle");
-          }
-        } catch {
-          // ignore polling errors
-        }
-      }, 3000);
+      setState("ready");
     } catch (err) {
       console.error("Login error:", err);
       setState("idle");
+    }
+  };
+
+  // Step 2: user clicked the Telegram link — start polling
+  const handleBotOpened = () => {
+    if (loginToken) {
+      startPolling(loginToken);
     }
   };
 
@@ -109,9 +105,30 @@ export function TelegramLoginButton({ className }: { className?: string }) {
     );
   }
 
+  // "ready" state: token fetched, show direct link to Telegram
+  if (state === "ready" && loginToken) {
+    return (
+      <div className={`inline-flex flex-col items-center gap-2 ${className || ""}`}>
+        <a
+          href={`https://t.me/${BOT_USERNAME}?start=login_${loginToken}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleBotOpened}
+          className={`inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#2AABEE] text-white rounded-2xl text-sm font-medium hover:bg-[#229ED9] transition-colors shadow-lg shadow-[#2AABEE]/20 ${className || ""}`}
+        >
+          <ExternalLink className="w-5 h-5" />
+          Открыть Telegram
+        </a>
+        <span className="text-xs text-warm-400">
+          Нажмите Start в боте для входа
+        </span>
+      </div>
+    );
+  }
+
   return (
     <button
-      onClick={handleLogin}
+      onClick={handlePrepare}
       disabled={state === "loading"}
       className={`inline-flex items-center gap-2.5 px-6 py-3.5 bg-[#2AABEE] text-white rounded-2xl text-sm font-medium hover:bg-[#229ED9] transition-colors disabled:opacity-50 shadow-lg shadow-[#2AABEE]/20 ${className || ""}`}
     >
