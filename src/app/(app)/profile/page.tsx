@@ -115,6 +115,21 @@ export default function ProfilePage() {
         </Card>
       </Link>
 
+      {user.role === "admin" && (
+        <Link href="/admin">
+          <Card hover className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-violet-500" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-warm-800 text-sm">Админ-панель</div>
+              <div className="text-xs text-warm-400">Статистика, пользователи, роли</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-warm-300" />
+          </Card>
+        </Link>
+      )}
+
       {user.tariff_id && (
         <Card className="bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200/60">
           <div className="flex items-center gap-3 mb-3">

@@ -90,11 +90,13 @@ export async function getOrCreateUser(data: TelegramLoginData) {
       last_name: data.last_name || existing.last_name,
     };
     if (data.photo_url) updates.photo_url = data.photo_url;
-    await supabase
+    const { data: updated } = await supabase
       .from("users")
       .update(updates)
-      .eq("id", existing.id);
-    return { ...existing, ...updates };
+      .eq("id", existing.id)
+      .select()
+      .single();
+    return updated || { ...existing, ...updates };
   }
 
   const { data: newUser, error } = await supabase

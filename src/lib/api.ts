@@ -180,6 +180,14 @@ export interface DBTariff {
   is_active: boolean;
 }
 
+export interface AdminStats {
+  users: { total: number; byRole: { user: number; manager: number; admin: number } };
+  games: { total: number; byStatus: Record<string, number>; list: { id: string; title: string; status: string; event_date: string; ticket_price_rub: number; created_at: string }[] };
+  transactions: { totalTransfers: number; totalVolumeB: number; totalBankInRub: number; totalBankOutRub: number };
+  participants: { total: number };
+  certificates: { active: number; redeemed: number; expired: number };
+}
+
 export interface DashboardData {
   game: DBGame;
   stats: {
@@ -311,4 +319,17 @@ export const api = {
     );
     return res.json();
   },
+
+  // Admin
+  adminGetUsers: (search?: string, role?: string) => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (role) params.set("role", role);
+    const qs = params.toString();
+    return fetchAPI<DBUser[]>(`/admin/users${qs ? `?${qs}` : ""}`);
+  },
+  adminUpdateUser: (id: string, data: { role: string }) =>
+    fetchAPI<DBUser>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  adminGetStats: () =>
+    fetchAPI<AdminStats>("/admin/stats"),
 };
