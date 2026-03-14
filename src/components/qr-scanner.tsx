@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
 import { X, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -11,31 +10,45 @@ interface QRScannerProps {
 }
 
 export function QRScanner({ onScan, onClose }: QRScannerProps) {
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const scannerRef = useRef<any>(null);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
   const containerId = "qr-reader";
 
   useEffect(() => {
-    const scanner = new Html5Qrcode(containerId);
-    scannerRef.current = scanner;
+    let cancelled = false;
 
-    scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          scanner.stop().catch(() => {});
-          onScan(decodedText);
-        },
-        () => {}
-      )
-      .catch((err) => {
-        console.error("QR scanner error:", err);
-        setError("Не удалось получить доступ к камере");
-      });
+    import("html5-qrcode").then(({ Html5Qrcode }) => {
+      if (cancelled) return;
+
+      const scanner = new Html5Qrcode(containerId);
+      scannerRef.current = scanner;
+      setReady(true);
+
+      scanner
+        .start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText: string) => {
+            scanner.stop().catch(() => {});
+            onScan(decodedText);
+          },
+          () => {}
+        )
+        .catch((err: unknown) => {
+          console.error("QR scanner error:", err);
+          setError("Не удалось получить доступ к камере. Проверьте разрешения.");
+        });
+    }).catch(() => {
+      setError("Не удалось загрузить сканер");
+    });
 
     return () => {
-      scanner.stop().catch(() => {});
+      cancelled = true;
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
     };
   }, [onScan]);
 
@@ -47,7 +60,12 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           <span className="font-medium">Сканировать QR-код</span>
         </div>
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (scannerRef.current) {
+              scannerRef.current.stop().catch(() => {});
+            }
+            onClose();
+          }}
           className="p-2 text-white/60 hover:text-white transition-colors"
         >
           <X className="w-6 h-6" />
@@ -64,6 +82,9 @@ export function QRScanner({ onScan, onClose }: QRScannerProps) {
           </div>
         ) : (
           <div className="w-full max-w-sm">
+            {!ready && (
+              <p className="text-white/40 text-sm text-center mb-4">Загрузка камеры...</p>
+            )}
             <div id={containerId} className="rounded-2xl overflow-hidden" />
             <p className="text-white/40 text-sm text-center mt-4">
               Наведите камеру на QR-код
