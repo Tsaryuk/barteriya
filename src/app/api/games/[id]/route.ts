@@ -100,9 +100,10 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Delete related data first
-    await supabase.from("transactions").delete().eq("game_id", params.id);
+    // Delete related data first (order matters for foreign keys)
+    await supabase.from("certificates").delete().eq("game_id", params.id);
     await supabase.from("purchased_certificates").delete().eq("game_id", params.id);
+    await supabase.from("transactions").delete().eq("game_id", params.id);
     await supabase.from("game_services").delete().eq("game_id", params.id);
     await supabase.from("pitch_sessions").delete().eq("game_id", params.id);
     await supabase.from("game_participants").delete().eq("game_id", params.id);
