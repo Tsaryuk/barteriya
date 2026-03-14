@@ -72,28 +72,6 @@ export default function GamesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const [joiningId, setJoiningId] = useState<string | null>(null);
-  const [joinError, setJoinError] = useState<string | null>(null);
-
-  const handleJoin = async (e: React.MouseEvent, gameId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user || joiningId) return;
-    setJoiningId(gameId);
-    setJoinError(null);
-    try {
-      await api.joinGame(gameId);
-      const updated = await api.getGames();
-      setGames(updated);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Не удалось записаться";
-      setJoinError(message);
-      setTimeout(() => setJoinError(null), 3000);
-    } finally {
-      setJoiningId(null);
-    }
-  };
-
   const handleCreate = async () => {
     if (!form.title.trim() || !form.eventDate) return;
     setCreating(true);
@@ -363,17 +341,12 @@ export default function GamesPage() {
                         />
                       </div>
                     )}
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={(e) => handleJoin(e, game.id)}
-                      disabled={joiningId === game.id}
-                    >
-                      {joiningId === game.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                      ) : null}
-                      Записаться{game.ticket_price_rub > 0 ? ` · ${formatRubles(game.ticket_price_rub)}` : ""}
-                    </Button>
+                    <div className="bg-brand-amber/10 text-brand-amber text-center text-sm font-medium py-2.5 rounded-xl">
+                      {game.ticket_price_rub > 0
+                        ? `Купить участие · ${formatRubles(game.ticket_price_rub)}`
+                        : "Записаться бесплатно"
+                      }
+                    </div>
                   </div>
                 )}
 
@@ -399,11 +372,6 @@ export default function GamesPage() {
         )}
       </div>
 
-      {joinError && (
-        <div className="fixed bottom-24 left-4 right-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-2xl shadow-lg z-50 text-center">
-          {joinError}
-        </div>
-      )}
     </div>
   );
 }

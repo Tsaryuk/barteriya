@@ -8,7 +8,6 @@ import { api, type DBGame } from "@/lib/api";
 import { useGame } from "@/context/game";
 import { useAuth } from "@/context/auth";
 import { formatBarters, formatRubles } from "@/lib/utils";
-import { QRCodeSVG } from "qrcode.react";
 import {
   MapPin,
   Calendar,
@@ -47,14 +46,9 @@ export default function GameDetailPage() {
   const [game, setGame] = useState<DBGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"info" | "participants" | "bank">("info");
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState("");
-  const [showQR, setShowQR] = useState(false);
-  const [checkingIn, setCheckingIn] = useState(false);
-  const [checkinError, setCheckinError] = useState("");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
 
-  // Payment modal state
+  // Payment modal
   const [showPayment, setShowPayment] = useState(false);
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
@@ -81,35 +75,6 @@ export default function GameDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
-  const handleJoin = async () => {
-    if (!user || !game) return;
-    setJoining(true);
-    setJoinError("");
-    try {
-      await api.joinGame(game.id);
-      await refreshGame();
-    } catch (err) {
-      setJoinError(err instanceof Error ? err.message : "Не удалось записаться");
-    } finally {
-      setJoining(false);
-    }
-  };
-
-  const handleCheckIn = async () => {
-    if (!user || !game) return;
-    setCheckingIn(true);
-    setCheckinError("");
-    try {
-      await api.checkIn(game.id, user.id);
-      await refreshGame();
-      setShowQR(false);
-    } catch (err) {
-      setCheckinError(err instanceof Error ? err.message : "Check-in failed");
-    } finally {
-      setCheckingIn(false);
-    }
-  };
-
   const formatCardNumber = (val: string) => {
     const digits = val.replace(/\D/g, "").slice(0, 16);
     return digits.replace(/(.{4})/g, "$1 ").trim();
@@ -121,12 +86,17 @@ export default function GameDetailPage() {
     return digits;
   };
 
+  // Pay = join + pay in one step
   const handlePayment = async () => {
     if (!game) return;
-    const digits = cardNumber.replace(/\D/g, "");
-    if (digits.length < 16) { setPayError("Введите номер карты"); return; }
-    if (cardExpiry.length < 5) { setPayError("Введите срок действия"); return; }
-    if (cardCvc.length < 3) { setPayError("Введите CVC"); return; }
+
+    // Validate card fields (demo mode, but looks real)
+    if (game.ticket_price_rub > 0) {
+      const digits = cardNumber.replace(/\D/g, "");
+      if (digits.length < 16) { setPayError("Введите номер карты"); return; }
+      if (cardExpiry.length < 5) { setPayError("Введите срок действия"); return; }
+      if (cardCvc.length < 3) { setPayError("Введите CVC"); return; }
+    }
 
     setPaying(true);
     setPayError("");
@@ -139,6 +109,22 @@ export default function GameDetailPage() {
       await refreshGame();
     } catch (err) {
       setPayError(err instanceof Error ? err.message : "Ошибка оплаты");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  // Buy participation (for free games -- no card form needed)
+  const handleBuyFree = async () => {
+    if (!game) return;
+    setPaying(true);
+    try {
+      await api.payForGame(game.id);
+      setPaymentSuccess(true);
+      setTimeout(() => setPaymentSuccess(false), 5000);
+      await refreshGame();
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Ошибка записи");
     } finally {
       setPaying(false);
     }
@@ -166,11 +152,11 @@ export default function GameDetailPage() {
   const timeStr = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   const participants = game.participants || [];
   const myParticipant = user ? participants.find((p) => p.user_id === user.id) : null;
-  const isParticipant = !!myParticipant;
   const isPaid = myParticipant?.paid || false;
   const isCheckedIn = myParticipant?.checked_in || false;
-  const needsPayment = isParticipant && !isPaid && game.ticket_price_rub > 0;
-  const isOrganizer = user && game.organizer_id === user.id;
+  const isAdmin = user && (user.role === "admin" || user.role === "organizer");
+  const canBuy = !myParticipant && (game.status === "open" || game.status === "active") && user;
+  const needsPayment = myParticipant && !isPaid;
 
   return (
     <div className="p-4 space-y-5">
@@ -183,7 +169,7 @@ export default function GameDetailPage() {
           <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
           <div>
             <p className="text-sm font-medium text-emerald-700">Оплата прошла успешно</p>
-            <p className="text-xs text-emerald-500">Пройдите check-in на мероприятии по QR-коду</p>
+            <p className="text-xs text-emerald-500">На мероприятии отсканируйте QR-код игры для check-in</p>
           </div>
         </div>
       )}
@@ -214,76 +200,76 @@ export default function GameDetailPage() {
         ))}
       </div>
 
-      {/* Status card for participants */}
-      {isParticipant && (
-        <Card className={`${
-          isCheckedIn ? "bg-emerald-50 border-emerald-200/60" :
-          needsPayment ? "bg-amber-50 border-amber-200/60" :
-          "bg-sky-50 border-sky-200/60"
-        }`}>
+      {/* Status card: participant flow */}
+      {isCheckedIn && (
+        <Card className="bg-emerald-50 border-emerald-200/60">
           <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-              isCheckedIn ? "bg-emerald-100 text-emerald-600" :
-              needsPayment ? "bg-amber-100 text-amber-600" :
-              "bg-sky-100 text-sky-600"
-            }`}>
-              {isCheckedIn ? <CheckCircle className="w-5 h-5" /> :
-               needsPayment ? <CreditCard className="w-5 h-5" /> :
-               <QrCode className="w-5 h-5" />}
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-100 text-emerald-600">
+              <CheckCircle className="w-5 h-5" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium text-warm-700">
-                {isCheckedIn ? "Вы в игре" :
-                 needsPayment ? "Ожидается оплата" :
-                 "Вы записаны"}
-              </div>
-              <div className="text-xs text-warm-400">
-                {isCheckedIn ? "Check-in пройден. Добро пожаловать!" :
-                 needsPayment ? `Оплатите билет: ${formatRubles(game.ticket_price_rub)}` :
-                 isPaid ? "Оплачено. Пройдите check-in на мероприятии." :
-                 "Бесплатная игра. Пройдите check-in."}
-              </div>
+              <div className="text-sm font-medium text-warm-700">Вы в игре</div>
+              <div className="text-xs text-warm-400">Check-in пройден. Добро пожаловать!</div>
             </div>
-            {needsPayment && (
-              <Button size="sm" onClick={() => setShowPayment(true)}>Оплатить</Button>
-            )}
-            {!isCheckedIn && !needsPayment && (game.status === "open" || game.status === "active") && (
-              <Button size="sm" variant="outline" onClick={() => setShowQR(true)}>
-                <QrCode className="w-4 h-4" />
-                Check-in
-              </Button>
-            )}
           </div>
-          {checkinError && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-red-500">
-              <AlertCircle className="w-3.5 h-3.5" />
-              {checkinError}
-            </div>
-          )}
         </Card>
       )}
 
-      {/* Join button for non-participants */}
-      {!isParticipant && game.status === "open" && user && (
+      {isPaid && !isCheckedIn && (
+        <Card className="bg-sky-50 border-sky-200/60">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-sky-100 text-sky-600">
+              <QrCode className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-warm-700">Оплачено</div>
+              <div className="text-xs text-warm-400">На мероприятии отсканируйте QR-код игры для check-in</div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {needsPayment && (
+        <Card className="bg-amber-50 border-amber-200/60">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-100 text-amber-600">
+              <CreditCard className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-warm-700">Ожидается оплата</div>
+              <div className="text-xs text-warm-400">Оплатите билет: {formatRubles(game.ticket_price_rub)}</div>
+            </div>
+            <Button size="sm" onClick={() => game.ticket_price_rub > 0 ? setShowPayment(true) : handleBuyFree()}>
+              Оплатить
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Buy participation button (not a participant yet) */}
+      {canBuy && (
         <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200/60">
           <div className="text-center space-y-3">
             <p className="text-sm text-warm-600">Записывайтесь на игру и обменивайтесь услугами</p>
             <Button
               size="lg"
               className="w-full"
-              onClick={handleJoin}
-              disabled={joining}
+              onClick={() => game.ticket_price_rub > 0 ? setShowPayment(true) : handleBuyFree()}
+              disabled={paying}
             >
-              {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              Записаться{game.ticket_price_rub > 0 ? ` · ${formatRubles(game.ticket_price_rub)}` : ""}
+              {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              {game.ticket_price_rub > 0
+                ? `Купить участие · ${formatRubles(game.ticket_price_rub)}`
+                : "Записаться бесплатно"
+              }
             </Button>
-            {joinError && <p className="text-xs text-red-500">{joinError}</p>}
+            {payError && <p className="text-xs text-red-500">{payError}</p>}
           </div>
         </Card>
       )}
 
-      {/* Quick links for active participants */}
-      {isParticipant && isCheckedIn && (
+      {/* Quick links for checked-in participants */}
+      {isCheckedIn && (
         <div className="grid grid-cols-2 gap-3">
           {(game.status === "active" || game.pitch_session) && (
             <Link href="/pitch">
@@ -318,8 +304,8 @@ export default function GameDetailPage() {
         </div>
       )}
 
-      {/* Organizer link to dashboard */}
-      {isOrganizer && (
+      {/* Organizer/admin link to dashboard */}
+      {isAdmin && (
         <Link href="/dashboard">
           <Card hover className="bg-gradient-to-r from-warm-50 to-warm-100 border-warm-200/60">
             <div className="flex items-center gap-4">
@@ -409,7 +395,7 @@ export default function GameDetailPage() {
               </div>
             </div>
           </Card>
-          {isParticipant && isCheckedIn && game.bank_open && (
+          {isCheckedIn && game.bank_open && (
             <Link href="/bank">
               <Button className="w-full">
                 <ArrowRightLeft className="w-4 h-4" />
@@ -437,7 +423,7 @@ export default function GameDetailPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-display font-bold text-lg text-warm-800">Оплата билета</h3>
+              <h3 className="font-display font-bold text-lg text-warm-800">Оплата участия</h3>
               <button onClick={() => { setShowPayment(false); setPayError(""); }} className="text-warm-400 hover:text-warm-600">
                 &times;
               </button>
@@ -516,44 +502,6 @@ export default function GameDetailPage() {
             <p className="text-[10px] text-warm-300 text-center mt-3">
               Демо-режим. Карточные данные не сохраняются.
             </p>
-          </div>
-        </div>
-      )}
-
-      {/* QR Check-in modal */}
-      {showQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl text-center">
-            <h3 className="font-display font-bold text-lg text-warm-800 mb-2">Check-in</h3>
-            <p className="text-sm text-warm-400 mb-6">
-              Покажите QR-код организатору или нажмите кнопку для check-in
-            </p>
-            <div className="flex justify-center mb-6">
-              <div className="bg-white p-4 rounded-2xl border border-warm-100 inline-block">
-                <QRCodeSVG
-                  value={`${typeof window !== "undefined" ? window.location.origin : ""}/checkin/${gameId}/${user?.id}`}
-                  size={180}
-                  level="M"
-                  bgColor="#FFFFFF"
-                  fgColor="#2D2A26"
-                />
-              </div>
-            </div>
-            {checkinError && (
-              <div className="mb-4 flex items-center justify-center gap-2 text-xs text-red-500">
-                <AlertCircle className="w-3.5 h-3.5" />
-                {checkinError}
-              </div>
-            )}
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => { setShowQR(false); setCheckinError(""); }}>
-                Закрыть
-              </Button>
-              <Button className="flex-1" onClick={handleCheckIn} disabled={checkingIn}>
-                {checkingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                Отметиться
-              </Button>
-            </div>
           </div>
         </div>
       )}

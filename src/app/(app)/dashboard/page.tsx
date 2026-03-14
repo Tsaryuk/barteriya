@@ -22,6 +22,7 @@ import {
   AlertCircle,
   ArrowRightLeft,
   Banknote,
+  Monitor,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -179,7 +180,8 @@ export default function DashboardPage() {
   const checkedIn = participants.filter((p) => p.checked_in);
   const paid = participants.filter((p) => p.paid);
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const checkinUrl = `${appUrl}/games/${gameId}`;
+  const checkinUrl = `${appUrl}/checkin/${gameId}`;
+  const tvUrl = `${appUrl}/tv/${gameId}`;
 
   return (
     <div className="p-4 space-y-5">
@@ -243,6 +245,21 @@ export default function DashboardPage() {
           )}
         </div>
       </Card>
+
+      {/* TV Dashboard link */}
+      <a href={tvUrl} target="_blank" rel="noopener noreferrer">
+        <Card hover className="bg-gradient-to-r from-[#1a1a2e] to-[#2d2a4e] border-violet-500/20">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+              <Monitor className="w-5 h-5 text-violet-400" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-white">Открыть на ТВ</div>
+              <div className="text-[10px] text-white/40">Полноэкранный дашборд для проектора</div>
+            </div>
+          </div>
+        </Card>
+      </a>
 
       {/* Stats grid */}
       <div className="grid grid-cols-3 gap-3">
