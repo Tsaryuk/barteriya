@@ -37,6 +37,7 @@ interface CreateGameForm {
   maxParticipants: string;
   pitchDurationMin: string;
   ticketPriceRub: string;
+  status: "draft" | "open";
 }
 
 const INITIAL_FORM: CreateGameForm = {
@@ -48,6 +49,7 @@ const INITIAL_FORM: CreateGameForm = {
   maxParticipants: "",
   pitchDurationMin: "2",
   ticketPriceRub: "",
+  status: "open",
 };
 
 export default function GamesPage() {
@@ -106,6 +108,7 @@ export default function GamesPage() {
         maxParticipants: form.maxParticipants ? parseInt(form.maxParticipants) : null,
         pitchDurationSec: (parseFloat(form.pitchDurationMin) || 2) * 60,
         ticketPriceRub: form.ticketPriceRub ? parseInt(form.ticketPriceRub) : 0,
+        status: form.status,
       } as unknown as Partial<DBGame>);
       setShowForm(false);
       setForm(INITIAL_FORM);
@@ -238,6 +241,26 @@ export default function GamesPage() {
                   min="0"
                   className="w-full px-3 py-2 rounded-xl border border-warm-200 bg-white text-sm text-warm-800 focus:outline-none focus:ring-2 focus:ring-brand-amber/30 focus:border-brand-amber"
                 />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-warm-500 mb-1">Статус при создании</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, status: "open" })}
+                  className={`flex-1 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${form.status === "open" ? "border-brand-sage bg-brand-sage/10 text-brand-sage" : "border-warm-200 text-warm-400 hover:border-warm-300"}`}
+                >
+                  Открыта для записи
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, status: "draft" })}
+                  className={`flex-1 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${form.status === "draft" ? "border-warm-400 bg-warm-50 text-warm-600" : "border-warm-200 text-warm-400 hover:border-warm-300"}`}
+                >
+                  Черновик
+                </button>
               </div>
             </div>
           </div>

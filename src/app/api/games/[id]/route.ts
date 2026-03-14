@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
 import { getUserFromRequest } from "@/lib/auth";
+import { notifyUser } from "@/lib/telegram";
 
 // GET /api/games/:id - game detail
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
@@ -12,8 +13,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         *,
         organizer:users!organizer_id(id, first_name, last_name, username),
         participants:game_participants(
-          id, balance_b, pitch_order, pitch_status, joined_at,
-          user:users(id, first_name, last_name, username, about)
+          id, user_id, balance_b, pitch_order, pitch_status, joined_at, paid, checked_in,
+          user:users(id, first_name, last_name, username, about, photo_url)
         ),
         pitch_session:pitch_sessions(*)
       `)
@@ -75,6 +76,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single();
 
     if (error) throw error;
+
+    // Notify checked-in participants when game starts
+    if (body.status === "active") {
+      const { data: checkedInParticipants } = await supabase
+        .from("game_participants")
+        .select("user:users!user_id(telegram_id)")
+        .eq("game_id", params.id)
+        .eq("checked_in", true);
+
+      if (checkedInParticipants) {
+        for (const p of checkedInParticipants) {
+          const tgId = (p.user as unknown as { telegram_id: number })?.telegram_id;
+          if (tgId) {
+            notifyUser(tgId, `🎮 <b>Игра началась!</b>\n\n«${updated.title}» стартовала. Приготовьтесь к питчу!`).catch(() => {});
+          }
+        }
+      }
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Update game error:", error);

@@ -55,6 +55,7 @@ export async function POST(req: NextRequest, { params }: { params: { gameId: str
       .select("id, pitch_order")
       .eq("game_id", params.gameId)
       .eq("pitch_status", "waiting")
+      .eq("checked_in", true)
       .gt("pitch_order", currentOrder)
       .order("pitch_order", { ascending: true })
       .limit(1)

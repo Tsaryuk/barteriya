@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
         pitch_duration_sec: body.pitchDurationSec || body.pitch_duration_sec || 120,
         ticket_price_rub: body.ticketPriceRub ?? body.ticket_price_rub ?? 0,
         organizer_id: auth.userId,
-        status: "draft",
+        status: body.status === "open" ? "open" : "draft",
       })
       .select()
       .single();
@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
       user_id: auth.userId,
       pitch_order: 1,
       balance_b: Number(userData?.balance_b) || 0,
+      paid: true,
+      paid_at: new Date().toISOString(),
     });
 
     return NextResponse.json(game, { status: 201 });

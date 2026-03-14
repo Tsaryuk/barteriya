@@ -42,6 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: { gameId: str
         .from("game_participants")
         .select("id")
         .eq("game_id", params.gameId)
+        .eq("checked_in", true)
         .order("pitch_order", { ascending: true })
         .limit(1)
         .single();

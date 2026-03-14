@@ -19,8 +19,8 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
     const { data: participants } = await supabase
       .from("game_participants")
       .select(`
-        id, balance_b, pitch_order, pitch_status,
-        user:users(id, first_name, last_name, username, about)
+        id, balance_b, pitch_order, pitch_status, paid, checked_in, checked_in_at,
+        user:users(id, first_name, last_name, username, about, photo_url)
       `)
       .eq("game_id", params.gameId)
       .order("balance_b", { ascending: false });
@@ -113,6 +113,8 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
       game,
       stats: {
         totalParticipants: participantList.length,
+        paidCount: participantList.filter((p: { paid?: boolean }) => p.paid).length,
+        checkedInCount: participantList.filter((p: { checked_in?: boolean }) => p.checked_in).length,
         totalDeals,
         totalBankIn,
         totalBankOut,
