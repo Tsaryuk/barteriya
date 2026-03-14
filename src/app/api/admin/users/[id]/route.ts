@@ -31,6 +31,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       allowedFields.is_blocked = body.is_blocked;
     }
 
+    if (body.role && ["user", "organizer", "admin"].includes(body.role)) {
+      allowedFields.role = body.role;
+    }
+
     if (Object.keys(allowedFields).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }

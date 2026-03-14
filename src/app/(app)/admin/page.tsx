@@ -500,6 +500,7 @@ function UsersTab() {
   const [search, setSearch] = useState("");
   const [blockFilter, setBlockFilter] = useState<"" | "blocked" | "active">("");
   const [toggling, setToggling] = useState<string | null>(null);
+  const [roleChanging, setRoleChanging] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -529,6 +530,30 @@ function UsersTab() {
     } finally {
       setToggling(null);
     }
+  };
+
+  const handleRoleChange = async (userId: string, role: string) => {
+    setRoleChanging(userId);
+    try {
+      const updated = await api.adminUpdateUser(userId, { role } as { is_blocked?: boolean });
+      setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setRoleChanging(null);
+    }
+  };
+
+  const roleLabels: Record<string, string> = {
+    user: "Участник",
+    organizer: "Менеджер",
+    admin: "Админ",
+  };
+
+  const roleBadgeVariant: Record<string, "default" | "sage" | "amber" | "coral"> = {
+    user: "default",
+    organizer: "amber",
+    admin: "coral",
   };
 
   return (
@@ -585,6 +610,9 @@ function UsersTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium text-warm-700 truncate">{fullName}</span>
+                      <Badge variant={roleBadgeVariant[u.role] || "default"}>
+                        {roleLabels[u.role] || u.role}
+                      </Badge>
                       {u.is_blocked && <Badge variant="coral">Заблокирован</Badge>}
                     </div>
                     <div className="text-[10px] text-warm-400 truncate">
@@ -595,24 +623,36 @@ function UsersTab() {
                       {new Date(u.created_at).toLocaleDateString("ru-RU")}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleToggleBlock(u.id, !u.is_blocked)}
-                    disabled={toggling === u.id}
-                    className={`shrink-0 p-2 rounded-xl transition-colors ${
-                      u.is_blocked
-                        ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
-                        : "bg-red-50 hover:bg-red-100 text-red-500"
-                    }`}
-                    title={u.is_blocked ? "Разблокировать" : "Заблокировать"}
-                  >
-                    {toggling === u.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : u.is_blocked ? (
-                      <CheckCircle className="w-4 h-4" />
-                    ) : (
-                      <Ban className="w-4 h-4" />
-                    )}
-                  </button>
+                  <div className="flex gap-1 shrink-0">
+                    <select
+                      value={u.role}
+                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                      disabled={roleChanging === u.id}
+                      className="text-[10px] rounded-lg border border-warm-200 bg-white px-1.5 py-1.5 text-warm-600 focus:outline-none focus:ring-1 focus:ring-brand-amber/40"
+                    >
+                      <option value="user">Участник</option>
+                      <option value="organizer">Менеджер</option>
+                      <option value="admin">Админ</option>
+                    </select>
+                    <button
+                      onClick={() => handleToggleBlock(u.id, !u.is_blocked)}
+                      disabled={toggling === u.id}
+                      className={`p-2 rounded-xl transition-colors ${
+                        u.is_blocked
+                          ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-600"
+                          : "bg-red-50 hover:bg-red-100 text-red-500"
+                      }`}
+                      title={u.is_blocked ? "Разблокировать" : "Заблокировать"}
+                    >
+                      {toggling === u.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : u.is_blocked ? (
+                        <CheckCircle className="w-4 h-4" />
+                      ) : (
+                        <Ban className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </Card>
             );

@@ -332,7 +332,7 @@ export const api = {
     const qs = params.toString();
     return fetchAPI<DBUser[]>(`/admin/users${qs ? `?${qs}` : ""}`);
   },
-  adminUpdateUser: (id: string, data: { is_blocked?: boolean }) =>
+  adminUpdateUser: (id: string, data: { is_blocked?: boolean; role?: string }) =>
     fetchAPI<DBUser>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   adminGetStats: () =>
     fetchAPI<AdminStats>("/admin/stats"),
