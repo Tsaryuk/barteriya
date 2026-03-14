@@ -179,7 +179,7 @@ export default function DashboardPage() {
   const { game, stats, participants, pitchSession, pitchQueue } = data;
   const checkedIn = participants.filter((p) => p.checked_in);
   const paid = participants.filter((p) => p.paid);
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
   const checkinUrl = `${appUrl}/checkin/${gameId}`;
   const tvUrl = `${appUrl}/tv/${gameId}`;
 

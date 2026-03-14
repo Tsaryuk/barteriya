@@ -204,7 +204,7 @@ export default function CatalogPage() {
 
       {qrService && gameId && (
         <QRModal
-          url={`${typeof window !== "undefined" ? window.location.origin : ""}/buy?gs=${qrService.id}&g=${gameId}`}
+          url={`${process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "")}/buy?gs=${qrService.id}&g=${gameId}`}
           title={qrService.title}
           subtitle="Покупатель сканирует этот QR"
           onClose={() => setQrService(null)}

@@ -120,7 +120,7 @@ export default function TVDashboard() {
 
   const { game, stats, participants, transactions, pitchSession, pitchQueue } = data;
   const checkedIn = participants.filter((p) => p.checked_in);
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
   const checkinUrl = `${appUrl}/checkin/${gameId}`;
   const isPitchActive = pitchSession?.status === "active" && pitchSession.current_speaker;
   const recentDeals = transactions.filter((t) => t.type === "transfer").slice(0, 5);
