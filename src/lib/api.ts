@@ -53,6 +53,7 @@ export interface DBUser {
   photo_url: string | null;
   about: string | null;
   role: "user" | "manager" | "admin";
+  is_blocked: boolean;
   tariff_id: string | null;
   tariff_expires_at: string | null;
   created_at: string;
@@ -328,8 +329,13 @@ export const api = {
     const qs = params.toString();
     return fetchAPI<DBUser[]>(`/admin/users${qs ? `?${qs}` : ""}`);
   },
-  adminUpdateUser: (id: string, data: { role: string }) =>
+  adminUpdateUser: (id: string, data: { is_blocked?: boolean }) =>
     fetchAPI<DBUser>(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   adminGetStats: () =>
     fetchAPI<AdminStats>("/admin/stats"),
+  adminBroadcast: (text: string, target?: "all" | "game_participants") =>
+    fetchAPI<{ sent: number; failed: number; total: number }>("/admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify({ text, target: target || "all" }),
+    }),
 };
