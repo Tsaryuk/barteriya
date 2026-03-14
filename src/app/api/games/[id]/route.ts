@@ -60,10 +60,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.title !== undefined) updates.title = body.title;
     if (body.description !== undefined) updates.description = body.description;
     if (body.location !== undefined) updates.location = body.location;
-    if (body.eventDate !== undefined) updates.event_date = body.eventDate;
+    if (body.eventDate !== undefined || body.event_date !== undefined) updates.event_date = body.eventDate || body.event_date;
     if (body.status !== undefined) updates.status = body.status;
-    if (body.maxParticipants !== undefined) updates.max_participants = body.maxParticipants;
-    if (body.pitchDurationSec !== undefined) updates.pitch_duration_sec = body.pitchDurationSec;
+    if (body.maxParticipants !== undefined || body.max_participants !== undefined) updates.max_participants = body.maxParticipants ?? body.max_participants;
+    if (body.pitchDurationSec !== undefined || body.pitch_duration_sec !== undefined) updates.pitch_duration_sec = body.pitchDurationSec ?? body.pitch_duration_sec;
+    if (body.ticketPriceRub !== undefined || body.ticket_price_rub !== undefined) updates.ticket_price_rub = body.ticketPriceRub ?? body.ticket_price_rub;
+    if (body.bank_open !== undefined) updates.bank_open = body.bank_open;
 
     const { data: updated, error } = await supabase
       .from("games")
@@ -77,5 +79,40 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   } catch (error) {
     console.error("Update game error:", error);
     return NextResponse.json({ error: "Failed to update game" }, { status: 500 });
+  }
+}
+
+// DELETE /api/games/:id - delete game (admin only)
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const auth = getUserFromRequest(req);
+    if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const supabase = createServerClient();
+
+    const { data: user } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", auth.userId)
+      .single();
+
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Delete related data first
+    await supabase.from("transactions").delete().eq("game_id", params.id);
+    await supabase.from("purchased_certificates").delete().eq("game_id", params.id);
+    await supabase.from("game_services").delete().eq("game_id", params.id);
+    await supabase.from("pitch_sessions").delete().eq("game_id", params.id);
+    await supabase.from("game_participants").delete().eq("game_id", params.id);
+
+    const { error } = await supabase.from("games").delete().eq("id", params.id);
+    if (error) throw error;
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Delete game error:", error);
+    return NextResponse.json({ error: "Failed to delete game" }, { status: 500 });
   }
 }

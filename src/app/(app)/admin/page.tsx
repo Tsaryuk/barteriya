@@ -29,6 +29,10 @@ import {
   Clock,
   Ticket,
   UsersRound,
+  Pencil,
+  Trash2,
+  X,
+  Save,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -189,6 +193,8 @@ function GamesTab() {
   const [games, setGames] = useState<DBGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -200,13 +206,26 @@ function GamesTab() {
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDelete = async (id: string) => {
+    if (!confirm("Удалить игру и все связанные данные? Это действие нельзя отменить.")) return;
+    setDeleting(id);
+    try {
+      await api.deleteGame(id);
+      setGames((prev) => prev.filter((g) => g.id !== id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Ошибка удаления");
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const statusLabels: Record<string, string> = {
     draft: "Черновик", open: "Открыта", active: "Активна", done: "Завершена", archive: "Архив",
   };
 
   return (
     <div className="space-y-3">
-      <Button size="sm" onClick={() => setShowForm(!showForm)}>
+      <Button size="sm" onClick={() => { setShowForm(!showForm); setEditingId(null); }}>
         <Plus className="w-4 h-4" />
         Создать игру
       </Button>
@@ -222,28 +241,49 @@ function GamesTab() {
         </Card>
       ) : (
         games.map((g) => (
-          <Card key={g.id} padding="sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-                <Gamepad2 className="w-5 h-5 text-violet-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-warm-700 truncate">{g.title}</div>
-                <div className="text-[10px] text-warm-400">
-                  {new Date(g.event_date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
-                  {g.location ? ` · ${g.location}` : ""}
+          editingId === g.id ? (
+            <EditGameForm key={g.id} game={g} onSaved={() => { setEditingId(null); load(); }} onCancel={() => setEditingId(null)} />
+          ) : (
+            <Card key={g.id} padding="sm">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+                  <Gamepad2 className="w-5 h-5 text-violet-500" />
                 </div>
-                {g.ticket_price_rub > 0 && (
-                  <div className="text-[10px] text-warm-400">Билет: {formatRubles(g.ticket_price_rub)}</div>
-                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-warm-700 truncate">{g.title}</div>
+                  <div className="text-[10px] text-warm-400">
+                    {new Date(g.event_date).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                    {g.location ? ` · ${g.location}` : ""}
+                  </div>
+                  {g.ticket_price_rub > 0 && (
+                    <div className="text-[10px] text-warm-400">Билет: {formatRubles(g.ticket_price_rub)}</div>
+                  )}
+                </div>
+                <Badge variant={
+                  g.status === "active" ? "sage" : g.status === "open" ? "amber" : "default"
+                }>
+                  {statusLabels[g.status] || g.status}
+                </Badge>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => { setEditingId(g.id); setShowForm(false); }}
+                    className="p-2 rounded-xl bg-warm-100 hover:bg-warm-200 text-warm-500 transition-colors"
+                    title="Редактировать"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(g.id)}
+                    disabled={deleting === g.id}
+                    className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors"
+                    title="Удалить"
+                  >
+                    {deleting === g.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-              <Badge variant={
-                g.status === "active" ? "sage" : g.status === "open" ? "amber" : "default"
-              }>
-                {statusLabels[g.status] || g.status}
-              </Badge>
-            </div>
-          </Card>
+            </Card>
+          )
         ))
       )}
     </div>
@@ -331,6 +371,118 @@ function CreateGameForm({ onCreated, onCancel }: { onCreated: () => void; onCanc
           <Button type="submit" size="sm" disabled={saving} className="flex-1">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
             Создать
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={onCancel}>Отмена</Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+function EditGameForm({ game, onSaved, onCancel }: { game: DBGame; onSaved: () => void; onCancel: () => void }) {
+  const eventDate = new Date(game.event_date);
+  const [title, setTitle] = useState(game.title);
+  const [description, setDescription] = useState(game.description || "");
+  const [location, setLocation] = useState(game.location || "");
+  const [date, setDate] = useState(eventDate.toISOString().slice(0, 10));
+  const [time, setTime] = useState(eventDate.toTimeString().slice(0, 5));
+  const [maxParticipants, setMaxParticipants] = useState(String(game.max_participants || ""));
+  const [pitchDuration, setPitchDuration] = useState(String(Math.round((game.pitch_duration_sec || 120) / 60)));
+  const [ticketPrice, setTicketPrice] = useState(String(game.ticket_price_rub || 0));
+  const [status, setStatus] = useState(game.status);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !date) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api.updateGame(game.id, {
+        title: title.trim(),
+        description: description.trim() || null,
+        location: location.trim() || null,
+        event_date: `${date}T${time}:00`,
+        max_participants: Number(maxParticipants) || null,
+        pitch_duration_sec: (Number(pitchDuration) || 2) * 60,
+        ticket_price_rub: Number(ticketPrice) || 0,
+        status,
+      } as Partial<DBGame>);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ошибка сохранения");
+      setSaving(false);
+    }
+  };
+
+  const inputClass = "w-full rounded-xl border border-warm-200 bg-white px-3 py-2.5 text-sm text-warm-800 placeholder:text-warm-300 focus:outline-none focus:ring-2 focus:ring-brand-amber/40";
+  const statusOptions = [
+    { value: "draft", label: "Черновик" },
+    { value: "open", label: "Открыта" },
+    { value: "active", label: "Активна" },
+    { value: "done", label: "Завершена" },
+    { value: "archive", label: "Архив" },
+  ];
+
+  return (
+    <Card className="border-brand-amber/30">
+      <div className="flex items-center justify-between mb-4">
+        <CardTitle className="text-base">Редактирование</CardTitle>
+        <button onClick={onCancel} className="p-1.5 rounded-lg hover:bg-warm-100 text-warm-400 transition-colors">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><Gamepad2 className="w-3 h-3" /> Название *</label>
+          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} required />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-warm-500 mb-1 block">Описание</label>
+          <textarea className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> Место</label>
+            <input className={inputClass} value={location} onChange={(e) => setLocation(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><Calendar className="w-3 h-3" /> Дата *</label>
+            <input className={inputClass} type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><Clock className="w-3 h-3" /> Время</label>
+            <input className={inputClass} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><UsersRound className="w-3 h-3" /> Макс.</label>
+            <input className={inputClass} type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 flex items-center gap-1"><Ticket className="w-3 h-3" /> Цена (₽)</label>
+            <input className={inputClass} type="number" value={ticketPrice} onChange={(e) => setTicketPrice(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 block">Питч (мин)</label>
+            <input className={inputClass} type="number" value={pitchDuration} onChange={(e) => setPitchDuration(e.target.value)} min="1" max="10" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-warm-500 mb-1 block">Статус</label>
+            <select className={inputClass} value={status} onChange={(e) => setStatus(e.target.value as DBGame["status"])}>
+              {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+        {error && <p className="text-xs text-brand-coral">{error}</p>}
+        <div className="flex gap-2 pt-1">
+          <Button type="submit" size="sm" disabled={saving} className="flex-1">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Сохранить
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>Отмена</Button>
         </div>

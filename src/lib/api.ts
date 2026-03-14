@@ -225,6 +225,8 @@ export const api = {
     fetchAPI<DBGame>("/games", { method: "POST", body: JSON.stringify(data) }),
   updateGame: (id: string, data: Partial<DBGame>) =>
     fetchAPI<DBGame>(`/games/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteGame: (id: string) =>
+    fetchAPI<{ ok: boolean }>(`/games/${id}`, { method: "DELETE" }),
   joinGame: (id: string) =>
     fetchAPI<DBParticipant>(`/games/${id}/join`, { method: "POST" }),
   checkIn: (gameId: string, userId: string) =>
