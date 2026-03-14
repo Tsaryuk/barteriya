@@ -24,6 +24,18 @@ export function TelegramLoginButton({ className }: { className?: string }) {
     return cleanup;
   }, [cleanup]);
 
+  const openBot = useCallback((token: string) => {
+    const url = `https://t.me/${BOT_USERNAME}?start=login_${token}`;
+    // On iOS/mobile, window.open may be blocked. Use a link click approach.
+    const a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }, []);
+
   const handleLogin = async () => {
     setState("loading");
     try {
@@ -31,8 +43,7 @@ export function TelegramLoginButton({ className }: { className?: string }) {
       const { token } = await res.json();
       setLoginToken(token);
 
-      // Open Telegram bot with login token
-      window.open(`https://t.me/${BOT_USERNAME}?start=login_${token}`, "_blank");
+      openBot(token);
 
       setState("polling");
 
@@ -86,16 +97,14 @@ export function TelegramLoginButton({ className }: { className?: string }) {
           <Loader2 className="w-5 h-5 animate-spin" />
           Подтверди вход в Telegram...
         </div>
-        <button
-          onClick={() => {
-            if (loginToken) {
-              window.open(`https://t.me/${BOT_USERNAME}?start=login_${loginToken}`, "_blank");
-            }
-          }}
+        <a
+          href={`https://t.me/${BOT_USERNAME}?start=login_${loginToken}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-xs text-warm-400 hover:text-warm-600 underline"
         >
           Открыть бота заново
-        </button>
+        </a>
       </div>
     );
   }

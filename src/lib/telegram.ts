@@ -43,6 +43,32 @@ export async function notifyUser(telegramId: number, text: string): Promise<bool
   return sendMessage({ chat_id: telegramId, text });
 }
 
+// Get user profile photo URL
+export async function getUserPhotoUrl(telegramId: number): Promise<string | null> {
+  try {
+    const res = await fetch(`${API}/getUserProfilePhotos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: telegramId, limit: 1 }),
+    });
+    const data = await res.json();
+    if (!data.ok || !data.result?.photos?.length) return null;
+
+    const fileId = data.result.photos[0][data.result.photos[0].length - 1].file_id;
+    const fileRes = await fetch(`${API}/getFile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+    const fileData = await fileRes.json();
+    if (!fileData.ok || !fileData.result?.file_path) return null;
+
+    return `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+  } catch {
+    return null;
+  }
+}
+
 // Escape HTML special chars for Telegram HTML mode
 export function escapeHtml(str: string): string {
   return str

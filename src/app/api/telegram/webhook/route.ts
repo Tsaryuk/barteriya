@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase";
-import { sendMessage, escapeHtml } from "@/lib/telegram";
+import { sendMessage, escapeHtml, getUserPhotoUrl } from "@/lib/telegram";
 import { formatBarters } from "@/lib/utils";
 
 interface TelegramUpdate {
@@ -86,6 +86,9 @@ async function handleLoginToken(chatId: number, telegramId: number, from: Telegr
     .single()
     .then((r) => r.data);
 
+  // Fetch profile photo from Telegram
+  const photoUrl = await getUserPhotoUrl(telegramId);
+
   if (!user) {
     const { data: newUser } = await supabase
       .from("users")
@@ -94,10 +97,21 @@ async function handleLoginToken(chatId: number, telegramId: number, from: Telegr
         first_name: from.first_name,
         last_name: from.last_name || null,
         username: from.username || null,
+        photo_url: photoUrl,
       })
       .select("id, first_name")
       .single();
     user = newUser;
+  } else {
+    // Update photo and name on each login
+    const updates: Record<string, unknown> = {};
+    if (from.first_name) updates.first_name = from.first_name;
+    if (from.last_name) updates.last_name = from.last_name;
+    if (from.username) updates.username = from.username;
+    if (photoUrl) updates.photo_url = photoUrl;
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("users").update(updates).eq("telegram_id", telegramId);
+    }
   }
 
   // Confirm the token
