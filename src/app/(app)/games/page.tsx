@@ -61,7 +61,7 @@ export default function GamesPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  const canCreate = user && (user.role === "manager" || user.role === "admin");
+  const canCreate = user && (user.role === "organizer" || user.role === "admin");
 
   useEffect(() => {
     api.getGames()
@@ -70,16 +70,25 @@ export default function GamesPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+
   const handleJoin = async (e: React.MouseEvent, gameId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) return;
+    if (!user || joiningId) return;
+    setJoiningId(gameId);
+    setJoinError(null);
     try {
       await api.joinGame(gameId);
       const updated = await api.getGames();
       setGames(updated);
     } catch (err) {
-      console.error("Join error:", err);
+      const message = err instanceof Error ? err.message : "Не удалось записаться";
+      setJoinError(message);
+      setTimeout(() => setJoinError(null), 3000);
+    } finally {
+      setJoiningId(null);
     }
   };
 
@@ -265,7 +274,9 @@ export default function GamesPage() {
             hour: "2-digit",
             minute: "2-digit",
           });
-          const participantCount = game.participants?.length ?? 0;
+          const participants = game.participants || [];
+          const participantCount = participants.length;
+          const isJoined = user ? participants.some((p: { user_id: string }) => p.user_id === user.id) : false;
 
           return (
             <Link
@@ -278,6 +289,9 @@ export default function GamesPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant={status.variant}>{status.label}</Badge>
+                      {isJoined && (
+                        <Badge variant="sage">Вы записаны</Badge>
+                      )}
                       {game.status === "open" && game.max_participants && (
                         <span className="text-[10px] text-warm-400">
                           {participantCount}/{game.max_participants} мест
@@ -316,7 +330,7 @@ export default function GamesPage() {
                   </div>
                 </div>
 
-                {game.status === "open" && (
+                {game.status === "open" && !isJoined && (
                   <div className="mt-4">
                     {game.max_participants && (
                       <div className="h-1.5 bg-warm-100 rounded-full overflow-hidden mb-2">
@@ -330,9 +344,24 @@ export default function GamesPage() {
                       size="sm"
                       className="w-full"
                       onClick={(e) => handleJoin(e, game.id)}
+                      disabled={joiningId === game.id}
                     >
+                      {joiningId === game.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                      ) : null}
                       Записаться{game.ticket_price_rub > 0 ? ` · ${formatRubles(game.ticket_price_rub)}` : ""}
                     </Button>
+                  </div>
+                )}
+
+                {game.status === "open" && isJoined && game.max_participants && (
+                  <div className="mt-4">
+                    <div className="h-1.5 bg-warm-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-brand-amber rounded-full transition-all"
+                        style={{ width: `${(participantCount / game.max_participants) * 100}%` }}
+                      />
+                    </div>
                   </div>
                 )}
               </Card>
@@ -346,6 +375,12 @@ export default function GamesPage() {
           </Card>
         )}
       </div>
+
+      {joinError && (
+        <div className="fixed bottom-24 left-4 right-4 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-2xl shadow-lg z-50 text-center">
+          {joinError}
+        </div>
+      )}
     </div>
   );
 }

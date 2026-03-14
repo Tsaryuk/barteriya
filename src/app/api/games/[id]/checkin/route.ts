@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         .eq("id", auth.userId)
         .single();
 
-      if (!me || (me.role !== "admin" && me.role !== "manager")) {
+      if (!me || (me.role !== "admin" && me.role !== "organizer")) {
         return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
       }
     }

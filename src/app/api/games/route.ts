@@ -11,7 +11,7 @@ export async function GET() {
       .select(`
         *,
         organizer:users!organizer_id(id, first_name, last_name, username),
-        participants:game_participants(count)
+        participants:game_participants(user_id)
       `)
       .order("event_date", { ascending: false });
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .eq("id", auth.userId)
       .single();
 
-    if (!user || (user.role !== "manager" && user.role !== "admin")) {
+    if (!user || (user.role !== "organizer" && user.role !== "admin")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -60,6 +60,21 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) throw error;
+
+    // Auto-add organizer as first participant
+    const { data: userData } = await supabase
+      .from("users")
+      .select("balance_b")
+      .eq("id", auth.userId)
+      .single();
+
+    await supabase.from("game_participants").insert({
+      game_id: game.id,
+      user_id: auth.userId,
+      pitch_order: 1,
+      balance_b: Number(userData?.balance_b) || 0,
+    });
+
     return NextResponse.json(game, { status: 201 });
   } catch (error) {
     console.error("Create game error:", error);

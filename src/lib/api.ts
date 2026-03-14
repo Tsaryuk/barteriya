@@ -52,7 +52,7 @@ export interface DBUser {
   phone: string | null;
   photo_url: string | null;
   about: string | null;
-  role: "user" | "manager" | "admin";
+  role: "user" | "organizer" | "admin";
   is_blocked: boolean;
   balance_b: number;
   tariff_id: string | null;

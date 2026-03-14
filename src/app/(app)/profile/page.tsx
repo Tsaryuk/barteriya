@@ -74,7 +74,7 @@ export default function ProfilePage() {
           )}
           <Badge variant="amber" className="mb-4">
             <Crown className="w-3 h-3 mr-1" />
-            {user.role === "admin" ? "Админ" : user.role === "manager" ? "Менеджер" : "Участник"}
+            {user.role === "admin" ? "Админ" : user.role === "organizer" ? "Организатор" : "Участник"}
           </Badge>
           {user.about && (
             <p className="text-sm text-warm-500 leading-relaxed mb-4">{user.about}</p>
