@@ -1,0 +1,25 @@
+{
+  "name": "Бартерия — живая игра обмена",
+  "short_name": "Бартерия",
+  "description": "Клубная игра обмена услугами через игровую валюту Бартер",
+  "start_url": "/home",
+  "display": "standalone",
+  "background_color": "#FEFBF4",
+  "theme_color": "#F59E0B",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

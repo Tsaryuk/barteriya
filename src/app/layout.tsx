@@ -19,13 +19,29 @@ export const metadata: Metadata = {
   title: "Бартерия — живая игра обмена",
   description: "Клубная игра, где предприниматели обмениваются услугами через игровую валюту Бартер. Без денег. Без барьеров. Только ценность.",
   keywords: ["бартерия", "бартер", "обмен услугами", "нетворкинг", "предприниматели"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Бартерия",
+  },
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#FEFBF4",
+  viewportFit: "cover",
+  themeColor: "#F59E0B",
 };
 
 export default function RootLayout({
