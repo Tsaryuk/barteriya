@@ -96,23 +96,29 @@ function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-xl border-t border-warm-200/40 pb-safe">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+        <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
           {NAV_ITEMS_LEFT.map((item) => (
-            <NavItem key={item.href} item={item} pathname={pathname} />
+            <div key={item.href} className="flex items-center justify-center">
+              <NavItem item={item} pathname={pathname} />
+            </div>
           ))}
 
-          <button
-            onClick={() => setShowScanner(true)}
-            className="flex flex-col items-center gap-1 -mt-5"
-          >
-            <div className="w-12 h-12 rounded-2xl bg-brand-amber flex items-center justify-center shadow-lg shadow-amber-300/40">
-              <ScanLine className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-[10px] font-medium text-warm-400">Скан</span>
-          </button>
+          <div className="flex items-center justify-center">
+            <button
+              onClick={() => setShowScanner(true)}
+              className="flex flex-col items-center gap-1 -mt-5"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-brand-amber flex items-center justify-center shadow-lg shadow-amber-300/40">
+                <ScanLine className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-[10px] font-medium text-warm-400">Скан</span>
+            </button>
+          </div>
 
           {NAV_ITEMS_RIGHT.map((item) => (
-            <NavItem key={item.href} item={item} pathname={pathname} />
+            <div key={item.href} className="flex items-center justify-center">
+              <NavItem item={item} pathname={pathname} />
+            </div>
           ))}
         </div>
       </nav>

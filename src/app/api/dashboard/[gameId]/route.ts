@@ -32,8 +32,8 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
       .from("transactions")
       .select(`
         *,
-        from_user:users!from_user_id(id, first_name, last_name),
-        to_user:users!to_user_id(id, first_name, last_name)
+        from_user:users!from_user_id(id, first_name, last_name, photo_url),
+        to_user:users!to_user_id(id, first_name, last_name, photo_url)
       `)
       .eq("game_id", params.gameId)
       .order("created_at", { ascending: false });
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
         *,
         current_speaker:game_participants!current_speaker_id(
           id, pitch_order, pitch_status,
-          user:users(id, first_name, last_name, username, about)
+          user:users(id, first_name, last_name, username, about, photo_url)
         )
       `)
       .eq("game_id", params.gameId)
@@ -62,7 +62,7 @@ export async function GET(_req: NextRequest, { params }: { params: { gameId: str
       .from("game_participants")
       .select(`
         id, pitch_order, pitch_status,
-        user:users(id, first_name, last_name, username, about)
+        user:users(id, first_name, last_name, username, about, photo_url)
       `)
       .eq("game_id", params.gameId)
       .not("pitch_order", "is", null)

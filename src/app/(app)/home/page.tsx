@@ -35,10 +35,10 @@ export default function HomePage() {
 
 function BalanceCard() {
   const { user } = useAuth();
-  const { activeGame, myParticipant } = useGame();
+  const { activeGame } = useGame();
 
-  const balance = myParticipant?.balance_b ?? 0;
-  const gameName = activeGame?.title ?? "Нет активной игры";
+  const balance = user?.balance_b ?? 0;
+  const gameName = activeGame?.title ?? null;
 
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-amber via-amber-500 to-brand-gold p-6 text-white shadow-warm">
@@ -48,7 +48,7 @@ function BalanceCard() {
       <div className="relative">
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm text-white/70">Мой баланс</span>
-          {activeGame && (
+          {gameName && (
             <Badge className="bg-white/20 text-white border-0 text-[10px]">{gameName}</Badge>
           )}
         </div>

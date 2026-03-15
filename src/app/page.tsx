@@ -24,6 +24,26 @@ import {
 import { useState, useEffect } from "react";
 
 export default function LandingPage() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("barteriya_token");
+    const user = localStorage.getItem("barteriya_user");
+    if (token && user) {
+      window.location.href = "/home";
+      return;
+    }
+    setReady(true);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-cream flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-warm-300 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cream">
       <Navbar />

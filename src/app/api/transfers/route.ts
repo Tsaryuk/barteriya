@@ -142,8 +142,8 @@ export async function GET(req: NextRequest) {
       .from("transactions")
       .select(`
         *,
-        from_user:users!from_user_id(id, first_name, last_name, username),
-        to_user:users!to_user_id(id, first_name, last_name, username)
+        from_user:users!from_user_id(id, first_name, last_name, username, photo_url),
+        to_user:users!to_user_id(id, first_name, last_name, username, photo_url)
       `)
       .eq("game_id", gameId)
       .order("created_at", { ascending: false });
