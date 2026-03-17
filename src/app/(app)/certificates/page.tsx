@@ -168,13 +168,13 @@ export default function CertificatesPage() {
 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Avatar name={sellerName} size="sm" />
+                    <Avatar name={sellerName} src={cert.seller?.photo_url || undefined} size="sm" />
                     <div>
                       <div className="text-[10px] text-warm-400">Продавец</div>
                       <div className="text-xs font-medium text-warm-600">{sellerName}</div>
                     </div>
                     <span className="text-warm-300 mx-1">&rarr;</span>
-                    <Avatar name={buyerName} size="sm" />
+                    <Avatar name={buyerName} src={cert.buyer?.photo_url || undefined} size="sm" />
                     <div>
                       <div className="text-[10px] text-warm-400">Покупатель</div>
                       <div className="text-xs font-medium text-warm-600">{buyerName}</div>

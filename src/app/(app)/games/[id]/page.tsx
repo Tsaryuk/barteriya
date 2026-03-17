@@ -347,7 +347,7 @@ export default function GameDetailPage() {
                 : "Участник";
               return (
                 <div key={p.id} className="flex items-center gap-3 p-3">
-                  <Avatar name={name} size="md" />
+                  <Avatar name={name} src={p.user?.photo_url || undefined} size="md" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium text-warm-700">{name}</span>

@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       .select(`
         *,
         service:services!service_id(id, title, description, price_b),
+        seller:users!seller_id(id, first_name, last_name, username, photo_url),
         buyer:users!buyer_id(id, first_name, last_name, username, phone, photo_url)
       `)
       .eq("seller_id", auth.userId)

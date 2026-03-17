@@ -1,3 +1,5 @@
+import { createServerClient } from "./supabase";
+
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
@@ -43,7 +45,7 @@ export async function notifyUser(telegramId: number, text: string): Promise<bool
   return sendMessage({ chat_id: telegramId, text });
 }
 
-// Get user profile photo URL
+// Download user profile photo from Telegram and upload to Supabase Storage
 export async function getUserPhotoUrl(telegramId: number): Promise<string | null> {
   try {
     const res = await fetch(`${API}/getUserProfilePhotos`, {
@@ -63,7 +65,31 @@ export async function getUserPhotoUrl(telegramId: number): Promise<string | null
     const fileData = await fileRes.json();
     if (!fileData.ok || !fileData.result?.file_path) return null;
 
-    return `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+    const telegramFileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+
+    // Download the photo
+    const photoRes = await fetch(telegramFileUrl);
+    if (!photoRes.ok) return null;
+    const photoBuffer = await photoRes.arrayBuffer();
+    const ext = fileData.result.file_path.split(".").pop() || "jpg";
+    const fileName = `avatars/${telegramId}.${ext}`;
+
+    // Upload to Supabase Storage
+    const supabase = createServerClient();
+    const { error: uploadError } = await supabase.storage
+      .from("photos")
+      .upload(fileName, photoBuffer, {
+        contentType: `image/${ext === "jpg" ? "jpeg" : ext}`,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Photo upload error:", uploadError);
+      return null;
+    }
+
+    const { data: publicUrl } = supabase.storage.from("photos").getPublicUrl(fileName);
+    return publicUrl.publicUrl;
   } catch {
     return null;
   }
